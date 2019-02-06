@@ -1,0 +1,15 @@
+downsample: 50000
+minimum_af: 0.01
+minimum_coverage: 10
+seqid_stats: ["3L", "3R", "X", "2L", "2R"]
+seqid_contam: ["3L", "3R"]
+ser: 0.001
+manifest: manifest
+scripts_loc: /home/njh/git/vector-ops/scripts
+genotyped_sites: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
+allele_frequencies: /kwiat/vector/observatory/resources/agam/phase2_biallelic_variantsites_af.zarr
+min_fgc: 0.5
+min_med_cov: 10
+min_female_xratio: 1.0
+max_male_xratio: 0.7
+max_pc_contam: 4.5
