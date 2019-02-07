@@ -1,32 +1,53 @@
 import os
 import numpy as np
 import pandas as pd
-configfile: "config.yml"
 
-samples = pd.read_csv(config["manifest"], index_col=0)
-script_dir = config["scripts_loc"] 
+sampleset = os.path.split(os.getcwd())[1]
 
-rule all:
-  input: 
-    contam=expand("output/{sample}.contamination.csv", sample=samples.index.tolist()),
-    alignm=expand("output/{sample}.callstats.csv", sample=samples.index.tolist())
+# read_fofn
+fofn_path = os.path.join(config["vector_ops"], "tracking", sampleset, "agam.fofn.tsv")
+fofn = pd.read_table(fofn_path)
+samples = fofn['sample'].unique()
+
+# set script dir
+script_dir = os.path.join(config["vector_ops"], "scripts")
+
+# create a table of paths
+path_df = pd.DataFrame(index=samples)
+path_df["path"] = [os.path.join(config["input_location"], x + ".zarr.zip") for x in samples]
+
+# HACK NOT IN PRODUCTION>>>
+path_df["exists"] = path_df.path.map(os.path.isfile)
+samples = path_df.loc[path_df.exists].index.tolist()
+
+rule qc_report:
+  input:
+    manifest="manifest",
+    csv=expand("{sample}.callstats.csv", sample=samples),
+    npy=expand("{sample}.covhist.npz", sample=samples),
+    contam=expand("{sample}.contamination.csv", sample=samples)
+  params:
+    min_fgc=config["min_fgc"],
+    min_med_cov=config["min_med_cov"],
+    min_female_xratio=config["min_female_xratio"],
+    max_male_xratio=config["max_male_xratio"],
+    max_pc_contam=config["max_pc_contam"],
+    path=lambda y: "{sample}"
   output:
-    txt="output/all.csv"
-  run: 
-    q = {x:pd.read_csv(x, index_col=0) for x in input}
-    z = pd.concat(q).sort_values("pc_contam")
-    z.to_csv(output.txt)
+    csv="qc_summary.tsv"
+  script:
+    os.path.join(script_dir, "combine_qc_cohort_stats.py")
 
 
 rule estimate_contamination:
   input:
-    input=lambda y: samples.path.loc[y.sample],
+    input=lambda y: path_df.path.loc[y.sample],
     sites=config["genotyped_sites"],
     allele_frequencies=config["allele_frequencies"]
   output:
-    txt="output/{sample}.contamination.csv"
+    txt="{sample}.contamination.csv"
   params:
-    stem="output/{sample}",
+    stem="{sample}",
     seqid=config["seqid_contam"],
     downsample=config["downsample"],
     minimum_af=config["minimum_af"],
@@ -35,38 +56,27 @@ rule estimate_contamination:
     plot=True,
     log=False
   script: 
-    os.path.join(config["scripts_loc"], "estimate_contamination.py")
+    os.path.join(script_dir, "estimate_contamination.py")
 
 
 rule coverage_summary:
   input:
-    input=lambda y: samples.path.loc[y.sample],
+    input=lambda y: path_df.path.loc[y.sample],
   output:
-    csv="output/{sample}.callstats.csv",
-    npy="output/{sample}.covhist.npz"
+    csv="{sample}.callstats.csv",
+    npy="{sample}.covhist.npz"
   params:
-    stem="output/{sample}",
+    stem="{sample}",
     seqid=config["seqid_stats"]
   script: 
-    os.path.join(config["scripts_loc"], "calculate_alignment_summary_stats.py")
+    os.path.join(script_dir, "calculate_alignment_summary_stats.py")
 
 
-rule combine_individual_outputs_apply_qc_filters:
-  input:
-    manifest=config["manifest"],
-    csv=expand("output/{sample}.callstats.csv", sample=samples.index.tolist()),
-    npy=expand("output/{sample}.covhist.npz", sample=samples.index.tolist()),
-    contam=expand("output/{sample}.contamination.csv", sample=samples.index.tolist())
-  params:
-    min_fgc=config["min_fgc"],
-    min_med_cov=config["min_med_cov"],
-    min_female_xratio=config["min_female_xratio"],
-    max_male_xratio=config["max_male_xratio"],
-    max_pc_contam=config["max_pc_contam"],
-    path=lambda y: "output/{sample}"
-  output:
-    csv="output/qc_summary.csv"
-  script:
-    os.path.join(config["scripts_loc"], "combine_qc_cohort_stats.py")
-    
+# required for qc_report.
+rule make_manifest:
+   output:
+     manifest="manifest"
+   run:
+     with open(output.manifest, "w") as fh:
+       print("\n".join(samples), file=fh)
 

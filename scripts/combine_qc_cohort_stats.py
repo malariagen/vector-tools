@@ -76,8 +76,8 @@ def main():
         args = vars(parser.parse_args())
         log("Args read via command line")
 
-    manifest = pd.read_csv(args['manifest'], index_col=0)
-    sids = manifest.index
+    with open(args["manifest"], mode="r") as sin:
+        sids = [x.strip() for x in sin.readlines()]
 
     contam_suffix = ".contamination.csv"
     align_suffix = ".callstats.csv"
