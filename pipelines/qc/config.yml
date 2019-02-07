@@ -12,6 +12,5 @@ max_pc_contam: 4.5
 manifest: manifest
 genotyped_sites: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
 allele_frequencies: /kwiat/vector/observatory/resources/agam/phase2_biallelic_variantsites_af.zarr
-vector_ops: /home/njh/git/vector-ops
 output_location: /kwiat/vector/observatory/production/vo_agam/qc/{sampleset}/
 input_location: /kwiat/vector/mirror/observatory/vo_agam/genotype_zarrs

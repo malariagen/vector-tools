@@ -10,7 +10,7 @@ fofn = pd.read_table(fofn_path)
 samples = fofn['sample'].unique()
 
 # set script dir
-script_dir = os.path.join(config["vector_ops"], "scripts")
+script_dir = "../../scripts"
 
 # create a table of paths
 path_df = pd.DataFrame(index=samples)
