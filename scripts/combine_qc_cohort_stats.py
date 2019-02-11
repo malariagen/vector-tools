@@ -19,15 +19,15 @@ def median_binc(x):
 # mean_median, mode
 def mode_binc(x):
     x = np.array(x)
-    return np.argmax(x)
+    return np.argmax(x[1:]) + 1
 
 
-def make_sex_call(ratio, female_min=1.0, male_max=0.7):
+def make_sex_call(ratio, female_min=0.8, female_max=1.2, male_max=0.6, male_min=0.4):
     if np.isnan(ratio):
         return "NA"
-    elif ratio > female_min:
+    elif female_max >= ratio >= female_min:
         return "F"
-    elif ratio < male_max:
+    elif male_min <= ratio <= male_max:
         return "M"
     else:
         return "UNK"
@@ -57,6 +57,8 @@ def main():
     parser.add_argument('--min-frac-genome-covered', default=0.5, required=False, type=float)
     parser.add_argument('--min-median-coverage', default=10, required=False, type=int)
     parser.add_argument('--min-female-xratio', default=0.8, required=False, type=float)
+    parser.add_argument('--max-female-xratio', default=1.1, required=False, type=float)
+    parser.add_argument('--min-male-xratio', default=0.4, required=False, type=float)
     parser.add_argument('--max-male-xratio', default=0.6, required=False, type=float)
     parser.add_argument('--max-pc-contamination', default=4.5, required=False, type=float)
 
@@ -69,6 +71,8 @@ def main():
             "min_median_coverage": snakemake.params.min_med_cov,
             "min_female_xratio":snakemake.params.min_female_xratio,
             "max_male_xratio":snakemake.params.max_male_xratio,
+            "max_female_xratio":snakemake.params.max_female_xratio,
+            "min_male_xratio":snakemake.params.min_male_xratio,
             "max_pc_contamination": snakemake.params.max_pc_contam
         }
         log("Args read via snakemake")
@@ -105,10 +109,11 @@ def main():
     # mode sum not in output
     coverage_all_sum.apply(mode_binc, axis=1)
 
-    qc_frame['coverage_ratio'] = (cov_frame.xs('X', level=1).apply(mean_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mean_binc, axis=1)).round(3)
+    qc_frame['coverage_ratio_mean'] = (cov_frame.xs('X', level=1).apply(mean_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mean_binc, axis=1)).round(3)
+    qc_frame['coverage_ratio_mode'] = (cov_frame.xs('X', level=1).apply(mode_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mode_binc, axis=1)).round(3)
 
-    qc_frame['sex_call'] = qc_frame['coverage_ratio'].apply(
-        make_sex_call, args=(args['min_female_xratio'], args['max_male_xratio']))
+    qc_frame['sex_call'] = qc_frame['coverage_ratio_mode'].apply(
+        make_sex_call, args=(args['min_female_xratio'], args['max_female_xratio'] , args['min_male_xratio'], args['max_male_xratio']))
 
     qc_frame['frac_gen_cov'] = (coverage_all_sum.T[1:].sum(axis=0) / coverage_all_sum.sum(axis=1)).round(3)
 
@@ -125,7 +130,7 @@ def main():
     output_frame["FILTER_frac_genome_cov"] = output_frame["frac_gen_cov"] >= args["min_frac_genome_covered"]
     output_frame["FILTER_median_cov"] = output_frame["median_cov"] >= args["min_median_coverage"]
     output_frame["FILTER_contamination"] = output_frame["pc_contam"] <= args["max_pc_contamination"]
-    output_frame["FILTER_nosexcall"] = output_frame["sex_call"].apply(lambda y: y not in ["M", "F"])
+    output_frame["FILTER_nosexcall"] = output_frame["sex_call"].apply(lambda y: y in ["M", "F"])
 
     output_frame.to_csv(args["output"])
 

@@ -6,8 +6,10 @@ seqid_contam: ["3L", "3R"]
 ser: 0.001
 min_fgc: 0.5
 min_med_cov: 10
-min_female_xratio: 1.0
-max_male_xratio: 0.7
+min_female_xratio: 0.8
+max_female_xratio: 1.1
+min_male_xratio: 0.4
+max_male_xratio: 0.6
 max_pc_contam: 4.5
 manifest: manifest
 genotyped_sites: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip

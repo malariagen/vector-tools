@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 
 sampleset = os.path.split(os.getcwd())[1]
+if os.path.isfile("configuration.yml"):
+  os.remove("configuration.yml")
 
 # read_fofn
 fofn_path = os.path.join(config["vector_ops"], "tracking", sampleset, "agam.fofn.tsv")
@@ -19,24 +21,38 @@ path_df["path"] = [os.path.join(config["input_location"], x + ".zarr.zip") for x
 # HACK NOT IN PRODUCTION>>>
 path_df["exists"] = path_df.path.map(os.path.isfile)
 samples = path_df.loc[path_df.exists].index.tolist()
+print(len(samples))
+
 
 rule qc_report:
   input:
     manifest="manifest",
     csv=expand("{sample}.callstats.csv", sample=samples),
     npy=expand("{sample}.covhist.npz", sample=samples),
-    contam=expand("{sample}.contamination.csv", sample=samples)
+    contam=expand("{sample}.contamination.csv", sample=samples),
+    cfg="configuration.yml"
   params:
     min_fgc=config["min_fgc"],
     min_med_cov=config["min_med_cov"],
-    min_female_xratio=config["min_female_xratio"],
+    min_male_xratio=config["min_male_xratio"],
     max_male_xratio=config["max_male_xratio"],
+    min_female_xratio=config["min_female_xratio"],
+    max_female_xratio=config["max_female_xratio"],
     max_pc_contam=config["max_pc_contam"],
     path=lambda y: "{sample}"
   output:
     csv="qc_summary.tsv"
   script:
     os.path.join(script_dir, "combine_qc_cohort_stats.py")
+
+
+rule write_config:
+  output:
+    cfg="configuration.yml"
+  run:
+    import yaml
+    with open(output.cfg, "w") as fh:
+      yaml.dump(config, fh)
 
 
 rule estimate_contamination:
