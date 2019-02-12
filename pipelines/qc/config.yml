@@ -1,18 +1,47 @@
+## Contamination
+# Number of sites to consider for the contamination analysis
 downsample: 50000
+
+# minimum allele frequency of sites to consider for contamination analysis. (higher MAF SNPs are more informative).
 minimum_af: 0.01
+
+# minimum coverage to include a site in the contamination analysis.
 minimum_coverage: 10
-seqid_stats: ["3L", "3R", "X", "2L", "2R"]
+
+# which chromosomes/contigs to perform contamination analysis on.
 seqid_contam: ["3L", "3R"]
+
+# sequence error rate, required for contamination estimation algorithm
 ser: 0.001
+
+# sites at which samples have been genotyped
+genotyped_sites: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
+
+# allele frequencies of above sites for contamination
+allele_frequencies: /kwiat/vector/observatory/resources/agam/phase2_biallelic_variantsites_af.zarr
+
+## Alignment summary statistics
+# which chromosomes to calculate alignment summary stats over.
+seqid_stats: ["3L", "3R", "X", "2L", "2R"]
+
+# QC analysis
+# minimum fraction of genome covered (by at least 1x) to not blacklist a sample.
 min_fgc: 0.5
+
+# minimum median coverage below which to blacklist samples
 min_med_cov: 10
+
+# min/max values of X/3L modal coverage for sex calling
 min_female_xratio: 0.8
 max_female_xratio: 1.1
 min_male_xratio: 0.4
 max_male_xratio: 0.6
+
+# max % contamination before blacklisted for contamination
 max_pc_contam: 4.5
-manifest: manifest
-genotyped_sites: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
-allele_frequencies: /kwiat/vector/observatory/resources/agam/phase2_biallelic_variantsites_af.zarr
-output_location: /kwiat/vector/observatory/production/vo_agam/qc/{sampleset}/
+
+# input/zip zarrs (for both contamination and alignment summary)
 input_location: /kwiat/vector/mirror/observatory/vo_agam/genotype_zarrs
+
+# output location for the QC work
+output_location: /kwiat/vector/observatory/production/vo_agam/qc/{sampleset}/

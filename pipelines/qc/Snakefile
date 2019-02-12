@@ -1,18 +1,20 @@
 import os
 import numpy as np
 import pandas as pd
+import re
 
-sampleset = os.path.split(os.getcwd())[1]
 if os.path.isfile("configuration.yml"):
   os.remove("configuration.yml")
 
 # read_fofn
-fofn_path = os.path.join(config["vector_ops"], "tracking", sampleset, "agam.fofn.tsv")
+pat = re.compile("^.+(AG1000G-\D{2}(-\D)?)/agam.fofn.tsv$")
+fofn_path = config["fofn"]
+mm = pat.match(fofn_path)
+assert mm is not None, "No sampleset found in path {!r}".format(fofn_path)
+sampleset = mm.group(1)
+
 fofn = pd.read_table(fofn_path)
 samples = fofn['sample'].unique()
-
-# set script dir
-script_dir = "../../scripts"
 
 # create a table of paths
 path_df = pd.DataFrame(index=samples)
@@ -21,16 +23,16 @@ path_df["path"] = [os.path.join(config["input_location"], x + ".zarr.zip") for x
 # HACK NOT IN PRODUCTION>>>
 path_df["exists"] = path_df.path.map(os.path.isfile)
 samples = path_df.loc[path_df.exists].index.tolist()
-print(len(samples))
 
 
 rule qc_report:
   input:
-    manifest="manifest",
-    csv=expand("{sample}.callstats.csv", sample=samples),
-    npy=expand("{sample}.covhist.npz", sample=samples),
-    contam=expand("{sample}.contamination.csv", sample=samples),
-    cfg="configuration.yml"
+    manifest=os.path.join(sampleset, "manifest"),
+    csv=expand(os.path.join(sampleset, "{sample}.callstats.csv"), sample=samples),
+    npy=expand(os.path.join(sampleset, "{sample}.covhist.npz"), sample=samples),
+    contam=expand(os.path.join(sampleset, "{sample}.contamination.csv"), sample=samples),
+    cfg=os.path.join(sampleset, "configuration.yml"),
+    fofn=fofn_path
   params:
     min_fgc=config["min_fgc"],
     min_med_cov=config["min_med_cov"],
@@ -39,16 +41,16 @@ rule qc_report:
     min_female_xratio=config["min_female_xratio"],
     max_female_xratio=config["max_female_xratio"],
     max_pc_contam=config["max_pc_contam"],
-    path=lambda y: "{sample}"
+    path=lambda y: os.path.join(sampleset, "{sample}")
   output:
-    csv="qc_summary.tsv"
+    csv=os.path.join(sampleset, "qc_summary.tsv")
   script:
-    os.path.join(script_dir, "combine_qc_cohort_stats.py")
+    "../../scripts/combine_qc_cohort_stats.py"
 
 
 rule write_config:
   output:
-    cfg="configuration.yml"
+    cfg=os.path.join(sampleset, "configuration.yml")
   run:
     import yaml
     with open(output.cfg, "w") as fh:
@@ -61,7 +63,7 @@ rule estimate_contamination:
     sites=config["genotyped_sites"],
     allele_frequencies=config["allele_frequencies"]
   output:
-    txt="{sample}.contamination.csv"
+    txt=os.path.join(sampleset, "{sample}.contamination.csv")
   params:
     stem="{sample}",
     seqid=config["seqid_contam"],
@@ -72,26 +74,26 @@ rule estimate_contamination:
     plot=True,
     log=False
   script: 
-    os.path.join(script_dir, "estimate_contamination.py")
+    "../../scripts/estimate_contamination.py"
 
 
 rule coverage_summary:
   input:
     input=lambda y: path_df.path.loc[y.sample],
   output:
-    csv="{sample}.callstats.csv",
-    npy="{sample}.covhist.npz"
+    csv=os.path.join(sampleset, "{sample}.callstats.csv"),
+    npy=os.path.join(sampleset, "{sample}.covhist.npz")
   params:
     stem="{sample}",
     seqid=config["seqid_stats"]
   script: 
-    os.path.join(script_dir, "calculate_alignment_summary_stats.py")
+    "../../scripts/calculate_alignment_summary_stats.py"
 
 
 # required for qc_report.
 rule make_manifest:
    output:
-     manifest="manifest"
+     manifest=os.path.join(sampleset, "manifest")
    run:
      with open(output.manifest, "w") as fh:
        print("\n".join(samples), file=fh)
