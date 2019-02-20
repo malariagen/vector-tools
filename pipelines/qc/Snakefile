@@ -3,15 +3,9 @@ import numpy as np
 import pandas as pd
 import re
 
-if os.path.isfile("configuration.yml"):
-  os.remove("configuration.yml")
-
 # read_fofn
-pat = re.compile("^.+(AG1000G-\D{2}(-\D)?)/agam.fofn.tsv$")
 fofn_path = config["fofn"]
-mm = pat.match(fofn_path)
-assert mm is not None, "No sampleset found in path {!r}".format(fofn_path)
-sampleset = mm.group(1)
+sampleset = os.path.basename(os.path.dirname(fofn_path))
 
 fofn = pd.read_table(fofn_path)
 samples = fofn['sample'].unique()
@@ -24,14 +18,18 @@ path_df["path"] = [os.path.join(config["input_location"], x + ".zarr.zip") for x
 path_df["exists"] = path_df.path.map(os.path.isfile)
 samples = path_df.loc[path_df.exists].index.tolist()
 
-
 rule qc_report:
   input:
-    manifest=os.path.join(sampleset, "manifest"),
-    csv=expand(os.path.join(sampleset, "{sample}.callstats.csv"), sample=samples),
-    npy=expand(os.path.join(sampleset, "{sample}.covhist.npz"), sample=samples),
-    contam=expand(os.path.join(sampleset, "{sample}.contamination.csv"), sample=samples),
-    cfg=os.path.join(sampleset, "configuration.yml"),
+    os.path.join(sampleset, "qc_summary.tsv")
+
+
+rule generate_report:
+  input:
+    manifest="{sampleset}/manifest",
+    csv=expand("{{sampleset}}/{sample}.callstats.csv", sample=samples),
+    npy=expand("{{sampleset}}/{sample}.covhist.npz", sample=samples),
+    contam=expand("{{sampleset}}/{sample}.contamination.csv", sample=samples),
+    cfg="{sampleset}/configuration.yml",
     fofn=fofn_path
   params:
     min_fgc=config["min_fgc"],
@@ -41,16 +39,17 @@ rule qc_report:
     min_female_xratio=config["min_female_xratio"],
     max_female_xratio=config["max_female_xratio"],
     max_pc_contam=config["max_pc_contam"],
-    path=lambda y: os.path.join(sampleset, "{sample}")
+    path=lambda y: os.path.join(y.sampleset, "{sample}"),
+    req="h_vmem=2G"
   output:
-    csv=os.path.join(sampleset, "qc_summary.tsv")
+    csv="{sampleset}/qc_summary.tsv"
   script:
     "../../scripts/combine_qc_cohort_stats.py"
 
 
 rule write_config:
   output:
-    cfg=os.path.join(sampleset, "configuration.yml")
+    cfg="{sampleset}/configuration.yml"
   run:
     import yaml
     with open(output.cfg, "w") as fh:
@@ -63,7 +62,7 @@ rule estimate_contamination:
     sites=config["genotyped_sites"],
     allele_frequencies=config["allele_frequencies"]
   output:
-    txt=os.path.join(sampleset, "{sample}.contamination.csv")
+    txt="{sampleset}/{sample}.contamination.csv"
   params:
     stem="{sample}",
     seqid=config["seqid_contam"],
@@ -72,7 +71,8 @@ rule estimate_contamination:
     minimum_coverage=config["minimum_coverage"],
     seq_err_rate=config["ser"],
     plot=True,
-    log=False
+    log=False,
+    req="h_vmem=4G"
   script: 
     "../../scripts/estimate_contamination.py"
 
@@ -81,11 +81,12 @@ rule coverage_summary:
   input:
     input=lambda y: path_df.path.loc[y.sample],
   output:
-    csv=os.path.join(sampleset, "{sample}.callstats.csv"),
-    npy=os.path.join(sampleset, "{sample}.covhist.npz")
+    csv="{sampleset}/{sample}.callstats.csv",
+    npy="{sampleset}/{sample}.covhist.npz"
   params:
     stem="{sample}",
-    seqid=config["seqid_stats"]
+    seqid=config["seqid_stats"],
+    req="h_vmem=4G"
   script: 
     "../../scripts/calculate_alignment_summary_stats.py"
 
@@ -93,7 +94,7 @@ rule coverage_summary:
 # required for qc_report.
 rule make_manifest:
    output:
-     manifest=os.path.join(sampleset, "manifest")
+     manifest="{sampleset}/manifest"
    run:
      with open(output.manifest, "w") as fh:
        print("\n".join(samples), file=fh)

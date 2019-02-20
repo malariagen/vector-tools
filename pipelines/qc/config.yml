@@ -42,6 +42,3 @@ max_pc_contam: 4.5
 
 # input/zip zarrs (for both contamination and alignment summary)
 input_location: /kwiat/vector/mirror/observatory/vo_agam/genotype_zarrs
-
-# output location for the QC work
-output_location: /kwiat/vector/observatory/production/vo_agam/qc/{sampleset}/
