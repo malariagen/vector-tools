@@ -74,7 +74,7 @@ rule estimate_contamination:
     seq_err_rate=config["ser"],
     plot=True,
     log=False,
-    req="h_vmem=4G"
+    req="h_vmem=12G"
   script: 
     "../../scripts/estimate_contamination.py"
 
@@ -88,7 +88,7 @@ rule coverage_summary:
   params:
     stem="{sample}",
     seqid=config["seqid_stats"],
-    req="h_vmem=4G"
+    req="h_vmem=12G"
   script: 
     "../../scripts/calculate_alignment_summary_stats.py"
 
