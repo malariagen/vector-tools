@@ -46,7 +46,7 @@ To run the pipeline (e.g. on the Uganda sampleset) invoke snakemake using the `S
 
 ```
 bash vector-tools/pipelines/qc/submit.sh qc_report \
-  --config fofn=tracking/AG1000G-UG/agam.fofn.tsv \
+  --config fofn=${pwd}/tracking/AG1000G-UG/agam.fofn.tsv \
   --configfile vector-tools/pipelines/qc/config.yml \
   -d /kwiat/vector/observatory/production/vo_agam/qc
 ```
