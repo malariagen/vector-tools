@@ -66,7 +66,7 @@ rule estimate_contamination:
   output:
     txt="{sampleset}/{sample}.contamination.csv"
   params:
-    stem="{sample}",
+    stem="{sampleset}/{sample}",
     seqid=config["seqid_contam"],
     downsample=config["downsample"],
     minimum_af=config["minimum_af"],
@@ -86,7 +86,7 @@ rule coverage_summary:
     csv="{sampleset}/{sample}.callstats.csv",
     npy="{sampleset}/{sample}.covhist.npz"
   params:
-    stem="{sample}",
+    stem="{sampleset}/{sample}",
     seqid=config["seqid_stats"],
     req="h_vmem=12G"
   script: 
