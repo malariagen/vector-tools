@@ -12,7 +12,7 @@ samples = fofn['sample'].unique()
 
 # create a table of paths
 path_df = pd.DataFrame(index=samples)
-path_df["path"] = [os.path.join(config["input_location"], x + ".zarr.zip") for x in samples]
+path_df["path"] = [os.path.join(config["input_location"], x + ".genotypes.zarr.zip") for x in samples]
 
 # HACK NOT IN PRODUCTION>>>
 path_df["exists"] = path_df.path.map(os.path.isfile)
