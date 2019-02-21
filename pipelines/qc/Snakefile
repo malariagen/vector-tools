@@ -29,7 +29,7 @@ rule generate_report:
     csv=expand("{{sampleset}}/{sample}.callstats.csv", sample=samples),
     npy=expand("{{sampleset}}/{sample}.covhist.npz", sample=samples),
     contam=expand("{{sampleset}}/{sample}.contamination.csv", sample=samples),
-    cfg="{sampleset}/configuration.yml",
+    cfg="{sampleset}/qc_config.yml",
     fofn=fofn_path
   params:
     min_fgc=config["min_fgc"],
@@ -49,7 +49,7 @@ rule generate_report:
 
 rule write_config:
   output:
-    cfg="{sampleset}/configuration.yml"
+    cfg="{sampleset}/qc_config.yml"
   run:
     import yaml
     with open(output.cfg, "w") as fh:

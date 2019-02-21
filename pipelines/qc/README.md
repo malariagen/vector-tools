@@ -65,8 +65,9 @@ For example, from the cluster:
 ```
 git checkout -b xxx-qc-uganda
 cp /kwiat/vector/observatory/production/vo_agam/qc/AG1000G-UG/qc_summary.tsv tracking/AG1000G-UG/qc/
-git add tracking/AG1000G-UG/qc_summary.tsv
-git commit -m "add qc summary file for Uganda sample set"
+cp /kwiat/vector/observatory/production/vo_agam/qc/AG1000G-UG/qc_config.yml tracking/AG1000G-UG/qc/
+git add tracking/AG1000G-UG/qc/
+git commit -m "add qc summary and config file for Uganda sample set"
 git push -u origin xxx-qc-uganda
 
 ```
