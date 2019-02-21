@@ -51,7 +51,7 @@ bash vector-tools/pipelines/qc/submit.sh qc_report \
   -d /kwiat/vector/observatory/production/vo_agam/qc
 ```
 
-The path to the `fofn` must be specified. This path is used to interpolate the name of the sampleset using a regex. The sampleset is used to define the output directory.
+The path to the `fofn` must be specified. This path is used to interpolate the name of the sampleset, which is the name of the directory containing the `fofn`. The sampleset name is used to define the output directory.
 
 The `-d` argument specifies the output directory. The `-d` flag is used instead of a config entry to ensure that any additional snakemake files are created in the designated output directory.
 
