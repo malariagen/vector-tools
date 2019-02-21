@@ -95,8 +95,8 @@ rule coverage_summary:
 
 # required for qc_report.
 rule make_manifest:
-   output:
-     manifest="{sampleset}/manifest"
+  output:
+    manifest="{sampleset}/manifest"
   params:
     req="h_vmem=2G"
   run:
