@@ -99,7 +99,7 @@ rule make_manifest:
      manifest="{sampleset}/manifest"
   params:
     req="h_vmem=2G"
-   run:
-     with open(output.manifest, "w") as fh:
-       print("\n".join(samples), file=fh)
+  run:
+    with open(output.manifest, "w") as fh:
+      print("\n".join(samples), file=fh)
 
