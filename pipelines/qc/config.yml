@@ -18,7 +18,7 @@ ser: 0.001
 genotyped_sites: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
 
 # allele frequencies of above sites for contamination
-allele_frequencies: /kwiat/vector/observatory/resources/agam/phase2_biallelic_variantsites_af.zarr
+allele_frequencies: /kwiat/2/coluzzi/ag1000g/data/analysis/phase2_biallelic_variantsites_af.zarr
 
 ## Alignment summary statistics
 # which chromosomes to calculate alignment summary stats over.
