@@ -98,7 +98,8 @@ def main():
 
     cov_frame = pd.concat(coverage_dict, axis=1).T
 
-	cov_grouped = cov_frame.groupby(level=0)
+    # this groups by individual. (and sums over chromosomes).
+    cov_grouped = cov_frame.groupby(level=0)
     coverage_all_sum = cov_grouped.agg(sum)
 
     qc_frame = pd.DataFrame(index=sids)
@@ -108,10 +109,12 @@ def main():
     qc_frame["median_cov"] = coverage_all_sum.apply(median_binc, axis=1)
     qc_frame["modal_cov"] = coverage_all_sum.apply(mode_binc, axis=1)
 
-	# report per chromosome mean/medians.
-    for chrom, df in cov_grouped:
-        qc_frame["mean_cov_" + chrom] = df.apply(mean_binc, axis=1).round(2) 
-        qc_frame["median_cov_" + chrom] = df.apply(median_binc, axis=1).round(2) 
+    # report per chromosome mean/medians.
+    cov_grouped_by_chrom = cov_frame.groupby(level=1)
+    for (_chrom, _gdf) in cov_grouped_by_chrom:
+        _gdf.index = _gdf.index.droplevel(level=1)
+        qc_frame["mean_cov_" + _chrom] = _gdf.apply(mean_binc, axis=1).round(2) 
+        qc_frame["median_cov_" + _chrom] = _gdf.apply(median_binc, axis=1)
 
     qc_frame['coverage_ratio_mean'] = (cov_frame.xs('X', level=1).apply(mean_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mean_binc, axis=1)).round(3)
     qc_frame['coverage_ratio_mode'] = (cov_frame.xs('X', level=1).apply(mode_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mode_binc, axis=1)).round(3)
@@ -136,7 +139,7 @@ def main():
     output_frame["FILTER_contamination"] = output_frame["pc_contam"] <= args["max_pc_contamination"]
     output_frame["FILTER_nosexcall"] = output_frame["sex_call"].apply(lambda y: y in ["M", "F"])
 
-    output_frame.to_csv(args["output"])
+    output_frame.to_csv(args["output"], sep="\t")
 
 
 if __name__== "__main__":
