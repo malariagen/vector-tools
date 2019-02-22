@@ -98,16 +98,20 @@ def main():
 
     cov_frame = pd.concat(coverage_dict, axis=1).T
 
-    coverage_all_sum = cov_frame.groupby(level=0).agg(sum)
+	cov_grouped = cov_frame.groupby(level=0)
+    coverage_all_sum = cov_grouped.agg(sum)
 
     qc_frame = pd.DataFrame(index=sids)
     qc_frame.index.name = "derived_sample_id"
 
     qc_frame["mean_cov"] = coverage_all_sum.apply(mean_binc, axis=1).round(2)
-    qc_frame['median_cov'] = coverage_all_sum.apply(median_binc, axis=1)
+    qc_frame["median_cov"] = coverage_all_sum.apply(median_binc, axis=1)
+    qc_frame["modal_cov"] = coverage_all_sum.apply(mode_binc, axis=1)
 
-    # mode sum not in output
-    coverage_all_sum.apply(mode_binc, axis=1)
+	# report per chromosome mean/medians.
+    for chrom, df in cov_grouped:
+        qc_frame["mean_cov_" + chrom] = df.apply(mean_binc, axis=1).round(2) 
+        qc_frame["median_cov_" + chrom] = df.apply(median_binc, axis=1).round(2) 
 
     qc_frame['coverage_ratio_mean'] = (cov_frame.xs('X', level=1).apply(mean_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mean_binc, axis=1)).round(3)
     qc_frame['coverage_ratio_mode'] = (cov_frame.xs('X', level=1).apply(mode_binc, axis=1) / cov_frame.xs('3L', level=1).apply(mode_binc, axis=1)).round(3)
