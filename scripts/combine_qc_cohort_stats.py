@@ -22,7 +22,7 @@ def mode_binc(x):
     return np.argmax(x[1:]) + 1
 
 
-def make_sex_call(ratio, female_min=0.8, female_max=1.2, male_max=0.6, male_min=0.4):
+def make_sex_call(ratio, female_min=0.8, female_max=1.2, male_min=0.4, male_max=0.6):
     if np.isnan(ratio):
         return "NA"
     elif female_max >= ratio >= female_min:
