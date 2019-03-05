@@ -40,7 +40,7 @@ rule generate_report:
     max_female_xratio=config["max_female_xratio"],
     max_pc_contam=config["max_pc_contam"],
     path=lambda y: os.path.join(y.sampleset, "{sample}"),
-    req="h_vmem=2G"
+    req="h_vmem=6G"
   output:
     csv="{sampleset}/qc_summary.tsv"
   script:
@@ -66,7 +66,7 @@ rule estimate_contamination:
   output:
     txt="{sampleset}/{sample}.contamination.csv"
   params:
-    stem="{sample}",
+    stem="{sampleset}/{sample}",
     seqid=config["seqid_contam"],
     downsample=config["downsample"],
     minimum_af=config["minimum_af"],
@@ -74,7 +74,7 @@ rule estimate_contamination:
     seq_err_rate=config["ser"],
     plot=True,
     log=False,
-    req="h_vmem=4G"
+    req="h_vmem=12G"
   script: 
     "../../scripts/estimate_contamination.py"
 
@@ -86,9 +86,9 @@ rule coverage_summary:
     csv="{sampleset}/{sample}.callstats.csv",
     npy="{sampleset}/{sample}.covhist.npz"
   params:
-    stem="{sample}",
+    stem="{sampleset}/{sample}",
     seqid=config["seqid_stats"],
-    req="h_vmem=4G"
+    req="h_vmem=12G"
   script: 
     "../../scripts/calculate_alignment_summary_stats.py"
 
