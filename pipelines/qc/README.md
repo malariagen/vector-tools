@@ -117,22 +117,6 @@ allele_frequencies: /kwiat/vector/observatory/resources/agam/phase2_biallelic_va
 # which chromosomes to calculate alignment summary stats over.
 seqid_stats: ["3L", "3R", "X", "2L", "2R"]
 
-# QC analysis
-# minimum fraction of genome covered (by at least 1x) to not blacklist a sample.
-min_fgc: 0.5
-
-# minimum median coverage below which to blacklist samples
-min_med_cov: 10
-
-# min/max values of X/3L modal coverage for sex calling
-min_female_xratio: 0.8
-max_female_xratio: 1.1
-min_male_xratio: 0.4
-max_male_xratio: 0.6
-
-# max % contamination before blacklisted for contamination
-max_pc_contam: 4.5
-
 # input/zip zarrs (for both contamination and alignment summary)
 input_location: /kwiat/vector/mirror/observatory/vo_agam/genotype_zarrs
 ```
