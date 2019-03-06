@@ -7,16 +7,12 @@ import re
 fofn_path = config["fofn"]
 sampleset = os.path.basename(os.path.dirname(fofn_path))
 
-fofn = pd.read_table(fofn_path)
+fofn = pd.read_csv(fofn_path, sep="\t")
 samples = fofn['sample'].unique()
 
 # create a table of paths
 path_df = pd.DataFrame(index=samples)
 path_df["path"] = [os.path.join(config["input_location"], x + ".genotypes.zarr.zip") for x in samples]
-
-# HACK NOT IN PRODUCTION>>>
-path_df["exists"] = path_df.path.map(os.path.isfile)
-samples = path_df.loc[path_df.exists].index.tolist()
 
 rule qc_report:
   input:
