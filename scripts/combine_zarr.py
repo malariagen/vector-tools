@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, division
 import argparse
 import os
 import sys
@@ -43,22 +42,39 @@ def main():
     parser.add_argument('--num-workers', required=False, default=None, type=int,
                         help='number of parallel workers to use, defaults to number of cores')
 
-    args = parser.parse_args()
+    try:
+        args = {
+          "samples": snakemake.params.samples,
+          "input_pattern": snakemake.params.input_pattern,
+          "output": snakemake.params.output,
+          "seqid": snakemake.params.seqid,
+          "field": snakemake.params.field,
+          "num_workers": snakemake.params.num_workers,
+          "cname": snakemake.params.cname,
+          "clevel": snakemake.params.clevel,
+          "chunk_width": snakemake.params.chunk_width,
+          "shuffle": snakemake.params.shuffle
+        }
+        log("Args read via snakemake")
+    except NameError:
+        args = vars(parser.parse_args())
+        log("Args read via command line")
 
     log('Combine sample zarrs')
     log('====================')
     log('Begin, using zarr {}, numcodecs {}, dask {}.'
         .format(zarr.__version__, numcodecs.__version__, dask.__version__))
-    samples = load_samples(path=args.samples)
-    check_genotypes_files(samples=samples, input_pattern=args.input_pattern)
-    arr = check_array_setup(samples=samples, input_pattern=args.input_pattern, seqid=args.seqid,
-                            field=args.field)
-    output_arr = setup_output(output_path=args.output, seqid=args.seqid, field=args.field,
-                              example_arr=arr, samples=samples, cname=args.cname,
-                              clevel=args.clevel, shuffle=args.shuffle, chunk_width=args.chunk_width)
-    input_arr = setup_input(samples=samples, input_pattern=args.input_pattern, seqid=args.seqid,
-                            field=args.field)
-    copy_data(input_arr=input_arr, output_arr=output_arr, num_workers=args.num_workers)
+
+    samples = load_samples(path=args["samples"])
+    check_genotypes_files(samples=samples, input_pattern=args["input_pattern"])
+    arr = check_array_setup(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+                            field=args["field"])
+    output_arr = setup_output(output_path=args["output"], seqid=args["seqid"], field=args["field"],
+                              example_arr=arr, samples=samples, cname=args["cname"],
+                              clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
+    input_arr = setup_input(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+                            field=args["field"])
+    copy_data(input_arr=input_arr, output_arr=output_arr, num_workers=args["num_workers"])
     log('All done.')
 
 

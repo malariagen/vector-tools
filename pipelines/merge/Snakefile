@@ -1,0 +1,100 @@
+import pandas as pd
+import os
+from pathlib import Path
+import pyfaidx
+
+fa = pyfaidx.Fasta(config["fasta_path"])
+contigs = list(fa.keys())
+
+fofn = pd.read_csv(config["fofn"], sep="\t")
+samples = fofn["sample"].unique()
+
+
+rule all_merge:
+  input:
+    expand(
+      os.path.join("merged.zarr/{chrom}/calldata/{field}"),
+      field=["GQ", "AD", "GT"], 
+      chrom=contigs)
+
+rule all_freqs:
+  input:
+    expand(
+      os.path.join("genotype_frequencies.zarr/{chrom}/AF"),
+      chrom=contigs)
+
+rule merge_zarr:
+  input:
+    manifest="manifest"
+  output:
+    zarr=directory("merged.zarr/{chrom}/calldata/{field}"),
+    done=touch("merged.zarr/{chrom}/calldata/{field}.complete")
+  params:
+    samples="manifest",
+    input_pattern=lambda y: os.path.join(config["data_dir"], "{sample}.zip"),
+    output="merged.zarr",
+    seqid=lambda y: y.chrom,
+    field=lambda y: y.field,
+    cname="zstd",
+    clevel=1,
+    chunk_width=50,
+    shuffle=0,
+    num_workers=4,
+    req="h_vmem=4G",
+    pe="-pe simple_pe 4"
+  conda:
+    "env.yml"
+  script:
+    "../../scripts/combine_zarr.py"
+
+#    "python {dir}/../../scripts/combine_zarr.py".format(dir=os.getcwd()) +\
+#    "--samples {input.manifest} "
+#    "--input-pattern {params.filestem}/{{sample}}.zip "
+#    "--output {params.zarr} "
+#    "--seqid {wildcards.chrom} "
+#    "--field {wildcards.field} "
+#    "--num-workers 4"
+
+
+rule compute_geno_freqs:
+  output:
+    zarr=directory("genotype_frequencies.zarr/{chrom}/AF"),
+    done=touch("genotype_frequencies.zarr/{chrom}/AF.complete"),
+  input:
+    zarr="merged.zarr/{chrom}/calldata/GT",
+    sites=config["sites_path"]
+  params:
+    outz="genotype_frequencies.zarr",
+    inz="merged.zarr",
+    req="h_vmem=10G",
+    pe=""
+  run:
+    import zarr
+    import allel
+    import numpy as np
+    
+    callset_fn = params.inz
+    output_fn = params.outz
+    chrom = wildcards.chrom
+    
+    zh = zarr.open_group(output_fn, "a")
+    merged_callset = zarr.open_group(callset_fn, "r")
+    zsites = zarr.open_group(input.sites, "r")
+    
+    gt = allel.GenotypeChunkedArray(merged_callset[chrom]["calldata/GT"])
+    positions = zsites[chrom]["variants/POS"]
+    af = gt.count_alleles().to_frequencies()    
+
+    zch = zh.require_group(chrom)
+    
+    zch.create_dataset("POS", data=positions)
+    zch.create_dataset("AF", data=af)
+
+rule dump_manifest:
+  output:
+    txt="manifest"
+  params:
+    req="h_vmem=4G",
+  run:
+    with open(output.txt, mode="w") as wr:
+      print("\n".join(samples), file=wr)
