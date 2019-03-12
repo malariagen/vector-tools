@@ -97,4 +97,5 @@ rule dump_manifest:
     req="h_vmem=4G",
   run:
     with open(output.txt, mode="w") as wr:
+      print("sample_name", file=wr)
       print("\n".join(samples), file=wr)
