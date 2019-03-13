@@ -26,3 +26,6 @@ seqid_stats: ["3L", "3R", "X", "2L", "2R"]
 
 # input/zip zarrs (for both contamination and alignment summary)
 input_location: /kwiat/vector/mirror/observatory/vo_agam/genotype_zarrs
+
+# suffix to append to the derived sample id to get zip zarr sample name
+gt_suffix: ".genotypes.zarr.zip"
