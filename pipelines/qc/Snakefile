@@ -12,7 +12,7 @@ samples = fofn['sample'].unique()
 
 # create a table of paths
 path_df = pd.DataFrame(index=samples)
-path_df["path"] = [os.path.join(config["input_location"], x + ".genotypes.zarr.zip") for x in samples]
+path_df["path"] = [os.path.join(config["input_location"], x + config["gt_suffix"]) for x in samples]
 
 rule qc_report:
   input:
