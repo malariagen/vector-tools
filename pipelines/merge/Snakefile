@@ -76,7 +76,7 @@ rule compute_geno_freqs:
     gt = allel.GenotypeChunkedArray(merged_callset[chrom]["calldata/GT"])
     positions = zsites[chrom]["variants/POS"]
 
-    if not gt.is_called().any():
+    if not np.any(gt.is_called()):
       af = np.zeros((positions.shape[0], 4))
     else:
       af = gt.count_alleles().to_frequencies()    
