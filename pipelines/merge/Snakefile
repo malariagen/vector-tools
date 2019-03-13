@@ -47,14 +47,6 @@ rule merge_zarr:
   script:
     "../../scripts/combine_zarr.py"
 
-#    "python {dir}/../../scripts/combine_zarr.py".format(dir=os.getcwd()) +\
-#    "--samples {input.manifest} "
-#    "--input-pattern {params.filestem}/{{sample}}.zip "
-#    "--output {params.zarr} "
-#    "--seqid {wildcards.chrom} "
-#    "--field {wildcards.field} "
-#    "--num-workers 4"
-
 
 rule compute_geno_freqs:
   output:
@@ -85,7 +77,7 @@ rule compute_geno_freqs:
     positions = zsites[chrom]["variants/POS"]
 
     if not gt.is_called().any():
-      af = np.zeroes((positions.shape[0], 4))
+      af = np.zeros((positions.shape[0], 4))
     else:
       af = gt.count_alleles().to_frequencies()    
 
