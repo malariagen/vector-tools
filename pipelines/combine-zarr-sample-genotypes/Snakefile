@@ -13,26 +13,26 @@ samples = fofn["sample"].unique()
 rule all_merge:
   input:
     expand(
-      os.path.join("merged.zarr/{chrom}/calldata/{field}"),
+      os.path.join("callset.zarr/{chrom}/calldata/{field}"),
       field=["GQ", "AD", "GT"], 
       chrom=contigs)
 
 rule all_freqs:
   input:
     expand(
-      os.path.join("genotype_frequencies.zarr/{chrom}/AF"),
+      os.path.join("allele_frequencies.zarr/{chrom}/AF"),
       chrom=contigs)
 
 rule merge_zarr:
   input:
     manifest="manifest"
   output:
-    zarr=directory("merged.zarr/{chrom}/calldata/{field}"),
-    done=touch("merged.zarr/{chrom}/calldata/{field}.complete")
+    zarr=directory("callset.zarr/{chrom}/calldata/{field}"),
+    done=touch("callset.zarr/{chrom}/calldata/{field}.complete")
   params:
     samples="manifest",
     input_pattern=lambda y: os.path.join(config["data_dir"], "{sample}.zip"),
-    output="merged.zarr",
+    output="callset.zarr",
     seqid=lambda y: y.chrom,
     field=lambda y: y.field,
     cname="zstd",
@@ -50,14 +50,14 @@ rule merge_zarr:
 
 rule compute_geno_freqs:
   output:
-    zarr=directory("genotype_frequencies.zarr/{chrom}/AF"),
-    done=touch("genotype_frequencies.zarr/{chrom}/AF.complete"),
+    zarr=directory("allele_frequencies.zarr/{chrom}/AF"),
+    done=touch("allele_frequencies.zarr/{chrom}/AF.complete"),
   input:
-    zarr="merged.zarr/{chrom}/calldata/GT",
+    zarr="callset.zarr/{chrom}/calldata/GT",
     sites=config["sites_path"]
   params:
-    outz="genotype_frequencies.zarr",
-    inz="merged.zarr",
+    outz="allele_frequencies.zarr",
+    inz="callset.zarr",
     req="h_vmem=10G",
     pe=""
   run:
@@ -77,14 +77,17 @@ rule compute_geno_freqs:
     positions = zsites[chrom]["variants/POS"]
 
     if not np.any(gt.is_called()):
+      ac = np.zeros((positions.shape[0], 4), dtype="int")
       af = np.zeros((positions.shape[0], 4))
     else:
-      af = gt.count_alleles().to_frequencies()    
+      ac = gt.count_alleles(max_allele=3)
+      af = ac.to_frequencies()    
 
     zch = zh.require_group(chrom)
     
     zch.create_dataset("POS", data=positions)
     zch.create_dataset("AF", data=af)
+    zch.create_dataset("AC", data=ac)
 
 rule dump_manifest:
   output:
