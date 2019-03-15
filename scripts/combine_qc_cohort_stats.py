@@ -4,22 +4,24 @@ import sys
 import argparse
 
 
-# mean_median, mode
+## functions to compute mean, median, mode from histogram counts
+# ignore 0s and 1s.
+# compute mean
 def mean_binc(x):
-    x = np.array(x)
-    return np.average(np.arange(0, x.shape[0], dtype="int"), weights=x)
+    x = np.array(x)[2:]
+    return np.average(np.arange(0, x.shape[0], dtype="int") + 2, weights=x)
 
 
-# mean_median, mode
+# compute median
 def median_binc(x):
-    x = np.array(x)
-    return np.searchsorted(np.cumsum(x), np.sum(x) // 2)
+    x = np.array(x)[2:]
+    return np.searchsorted(np.cumsum(x), np.sum(x) // 2) + 2
 
 
-# mean_median, mode
+# compute mode
 def mode_binc(x):
-    x = np.array(x)
-    return np.argmax(x[1:]) + 1
+    x = np.array(x)[2:]
+    return np.argmax(x) + 2
 
 
 def log(*msg):
