@@ -1,0 +1,73 @@
+import os
+import pandas as pd
+from itertools import combinations
+
+with open(config["fofns"], "r") as fh:
+  fofns = [x.strip() for x in fh.readlines()]
+
+# input is a set of fofns
+all_fofns = pd.concat([pd.read_csv(f, sep="\t") for f in fofns])
+samples = sorted(all_fofns["sample"].unique())
+
+# HACK
+paths = [os.path.join(config["input_location"], s + config["gt_suffix"]) for s in samples]
+samples = [s for (s, p) in zip(samples, paths) if os.path.isfile(p)][:5]
+
+
+rule determine_pwc:
+  input:
+    pwdf=["pwd/{sampleA}.{sampleB}.txt".format(sampleA=a, sampleB=b) for a, b in combinations(samples, 2)],
+    fofn=fofns
+    
+
+rule compute_sample_pwd:
+  input:
+    sampleA=os.path.join(config["input_location"], "{sampleA}" + config["gt_suffix"]),
+    sampleB=os.path.join(config["input_location"], "{sampleB}" + config["gt_suffix"]),
+    biallelic=config["biallelic_sites"],
+    sites=config["genotyped_sites"]
+  output:
+    txt="pwd/{sampleA}.{sampleB}.txt"
+  run:
+    import allel
+    import zarr
+    import numpy as np
+    import scipy.spatial.distance as dist
+    
+    calldataA = zarr.open_group(input.sampleA)[wildcards.sampleA]
+    calldataB = zarr.open_group(input.sampleB)[wildcards.sampleB]
+
+	
+    biallelic_sites = zarr.open_group(input.biallelic, mode="r")
+    called_sites = zarr.open_group(input.sites, mode="r")
+
+    # create gt file...
+    z = zarr.empty((0, 2), dtype="int8")
+
+    for contig in config["pwd_contigs"]:
+
+      sites_pos = allel.SortedIndex(called_sites[contig]["variants/POS"])
+      bial_pos = allel.SortedIndex(biallelic_sites[contig]["variants/POS"])
+
+      loc = sites_pos.locate_keys(bial_pos)
+
+      gt_a = allel.GenotypeDaskArray(calldataA[contig]["calldata/GT"]).compress(loc)
+      gt_b = allel.GenotypeDaskArray(calldataB[contig]["calldata/GT"]).compress(loc)
+
+      bref = np.array(biallelic_sites[contig]["variants/REF"])
+      balt = np.array(biallelic_sites[contig]["variants/ALT"])
+      alleles=np.hstack([bref[:, np.newaxis], balt])
+
+      mapping = allel.create_allele_mapping(
+        ref=np.compress(loc, called_sites[contig]["variants/REF"]),
+        alt=np.compress(loc, called_sites[contig]["variants/ALT"]),
+        alleles=alleles)
+
+      gt_a_map = gt_a.map_alleles(mapping)
+      gt_b_map = gt_b.map_alleles(mapping)
+
+      d = dist.euclidean(gt_a_map.to_n_alt(), gt_b_map.to_n_alt())
+      break      
+
+    with open(output.txt, "w") as wr:
+      print(d, file=wr)
