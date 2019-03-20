@@ -10,8 +10,10 @@ all_fofns = pd.concat([pd.read_csv(f, sep="\t") for f in fofns])
 samples = sorted(all_fofns["sample"].unique())
 
 # HACK
+print("WARNING HACK IN OPERATION: IGNORING NON EXISTENT FILES")
 paths = [os.path.join(config["input_location"], s + config["gt_suffix"]) for s in samples]
 samples = [s for (s, p) in zip(samples, paths) if os.path.isfile(p)][:5]
+# END HACK
 
 
 rule determine_pwc:
@@ -36,28 +38,29 @@ rule compute_sample_pwd:
     
     calldataA = zarr.open_group(input.sampleA)[wildcards.sampleA]
     calldataB = zarr.open_group(input.sampleB)[wildcards.sampleB]
-
 	
     biallelic_sites = zarr.open_group(input.biallelic, mode="r")
     called_sites = zarr.open_group(input.sites, mode="r")
 
     # create gt file...
-    z = zarr.empty((0, 2), dtype="int8")
+    xa = []
+    xb = []
 
     for contig in config["pwd_contigs"]:
 
+      # these 6 lines are unnecessarily duplicated per sample pair
       sites_pos = allel.SortedIndex(called_sites[contig]["variants/POS"])
       bial_pos = allel.SortedIndex(biallelic_sites[contig]["variants/POS"])
-
       loc = sites_pos.locate_keys(bial_pos)
-
-      gt_a = allel.GenotypeDaskArray(calldataA[contig]["calldata/GT"]).compress(loc)
-      gt_b = allel.GenotypeDaskArray(calldataB[contig]["calldata/GT"]).compress(loc)
 
       bref = np.array(biallelic_sites[contig]["variants/REF"])
       balt = np.array(biallelic_sites[contig]["variants/ALT"])
       alleles=np.hstack([bref[:, np.newaxis], balt])
 
+      gt_a = allel.GenotypeDaskArray(calldataA[contig]["calldata/GT"]).compress(loc)
+      gt_b = allel.GenotypeDaskArray(calldataB[contig]["calldata/GT"]).compress(loc)
+
+      # this is done unnecessarily per sample pair 
       mapping = allel.create_allele_mapping(
         ref=np.compress(loc, called_sites[contig]["variants/REF"]),
         alt=np.compress(loc, called_sites[contig]["variants/ALT"]),
@@ -65,9 +68,21 @@ rule compute_sample_pwd:
 
       gt_a_map = gt_a.map_alleles(mapping)
       gt_b_map = gt_b.map_alleles(mapping)
+      not_missing = (gt_a_map.count_missing(axis=1) == 0) & (gt_b_map.count_missing(axis=1) == 0)
 
-      d = dist.euclidean(gt_a_map.to_n_alt(), gt_b_map.to_n_alt())
-      break      
+      _xa = gt_a_map.compress(not_missing, axis=0).to_n_alt()
+      _xb = gt_b_map.compress(not_missing, axis=0).to_n_alt()
+
+      xa.append(_xa)
+      xb.append(_xb)
+
+    xa = np.concatenate(xa, axis=0)
+    xb = np.concatenate(xb, axis=0)
+    
+    deuc = dist.euclidean(xa, xb)
+    dcit = dist.cityblock(xa, xb)
 
     with open(output.txt, "w") as wr:
-      print(d, file=wr)
+      print("EUC", deuc, file=wr)
+      print("CIB", dcit, file=wr)
+      print("nSI", xa.shape[0], file=wr)
