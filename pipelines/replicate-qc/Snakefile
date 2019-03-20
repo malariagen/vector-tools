@@ -24,31 +24,39 @@ rule determine_pwc:
 
 rule compute_sample_pwd:
   input:
-    sampleA=os.path.join(config["input_location"], "{sampleA}" + config["gt_suffix"]),
-    sampleB=os.path.join(config["input_location"], "{sampleB}" + config["gt_suffix"]),
+    genotA="{samplesetA}/callset.zarr",
+    genotB="{samplesetB}/callset.zarr",
     biallelic=config["biallelic_sites"],
     sites=config["genotyped_sites"]
   output:
-    txt="pwd/{sampleA}.{sampleB}.txt"
+    zarr="pwd/{samplesetA}.{samplesetB}.zarr"
   run:
     import allel
     import zarr
     import numpy as np
     import scipy.spatial.distance as dist
     
-    calldataA = zarr.open_group(input.sampleA)[wildcards.sampleA]
-    calldataB = zarr.open_group(input.sampleB)[wildcards.sampleB]
+    calldataA = zarr.open_group(input.genotA)
+    calldataB = zarr.open_group(input.genotB)
 	
     biallelic_sites = zarr.open_group(input.biallelic, mode="r")
     called_sites = zarr.open_group(input.sites, mode="r")
 
-    # create gt file...
-    xa = []
-    xb = []
+    # create output file
+    samples_a = calldataA["samples"][:]
+    samples_b = calldataB["samples"][:]
 
-    for contig in config["pwd_contigs"]:
+    euc_d = np.zeros(
+      (len(config["pwd_contigs"]), samples_a.size, samples_b.size), dtype="float")
 
-      # these 6 lines are unnecessarily duplicated per sample pair
+    cit_d = np.zeros(
+      (len(config["pwd_contigs"]), samples_a.size, samples_b.size), dtype="float")
+
+    nsites = np.zeros(
+      (len(config["pwd_contigs"]), samples_a.size, samples_b.size), dtype="float")
+
+    for cix, contig in enumerate(config["pwd_contigs"]):
+
       sites_pos = allel.SortedIndex(called_sites[contig]["variants/POS"])
       bial_pos = allel.SortedIndex(biallelic_sites[contig]["variants/POS"])
       loc = sites_pos.locate_keys(bial_pos)
@@ -57,10 +65,10 @@ rule compute_sample_pwd:
       balt = np.array(biallelic_sites[contig]["variants/ALT"])
       alleles=np.hstack([bref[:, np.newaxis], balt])
 
+      # reduce to biallelic sites all samples still
       gt_a = allel.GenotypeDaskArray(calldataA[contig]["calldata/GT"]).compress(loc)
       gt_b = allel.GenotypeDaskArray(calldataB[contig]["calldata/GT"]).compress(loc)
 
-      # this is done unnecessarily per sample pair 
       mapping = allel.create_allele_mapping(
         ref=np.compress(loc, called_sites[contig]["variants/REF"]),
         alt=np.compress(loc, called_sites[contig]["variants/ALT"]),
@@ -68,19 +76,27 @@ rule compute_sample_pwd:
 
       gt_a_map = gt_a.map_alleles(mapping)
       gt_b_map = gt_b.map_alleles(mapping)
-      not_missing = (gt_a_map.count_missing(axis=1) == 0) & (gt_b_map.count_missing(axis=1) == 0)
 
-      _xa = gt_a_map.compress(not_missing, axis=0).to_n_alt()
-      _xb = gt_b_map.compress(not_missing, axis=0).to_n_alt()
+      # now we can loop through sample pairs:
+      for i, j in product(range(samples_a.size), range(samples_b.size)):
 
-      xa.append(_xa)
-      xb.append(_xb)
+        print(contig, i, j)
+        sa = gt_a_map.take([i], axis=1)
+        sb = gt_b_map.take([j], axis=1)
 
-    xa = np.concatenate(xa, axis=0)
-    xb = np.concatenate(xb, axis=0)
-    
-    deuc = dist.euclidean(xa, xb)
-    dcit = dist.cityblock(xa, xb)
+        not_missing = (sa.count_missing(axis=1) == 0) & (sa.count_missing(axis=1) == 0)
+
+        _xa = sa.compress(not_missing, axis=0).to_n_alt()
+        _xb = sb.compress(not_missing, axis=0).to_n_alt()
+
+        euc_d[cix, i, j] = dist.euclidean(_xa, _xb)
+        cit_d[cix, i, j] = dist.cityblock(_xa, _xb)
+        nsites[cix, i, j] = _xa.shape[0]
+
+    zz = zarr.open_group(output.zarr, "w")
+    zz.create_dataset("euclidean", data=euc_d)
+    zz.create_dataset("cityblock", data=cit_d)
+    zz.create_dataset("comp_sites", data=nsites)
 
     with open(output.txt, "w") as wr:
       print("EUC", deuc, file=wr)
