@@ -31,13 +31,13 @@ rule merge_zarr:
     done=touch("callset.zarr/{chrom}/calldata/{field}.complete")
   params:
     samples="manifest",
-    input_pattern=lambda y: os.path.join(config["data_dir"], "{sample}.zip"),
+    input_pattern=lambda y: os.path.join(config["data_dir"], "{sample}" + config["gt_suffix"]),
     output="callset.zarr",
     seqid=lambda y: y.chrom,
     field=lambda y: y.field,
     cname="zstd",
     clevel=1,
-    chunk_width=50,
+    chunk_width=config["chunk_width"],
     shuffle=0,
     num_workers=4,
     req="h_vmem=4G",

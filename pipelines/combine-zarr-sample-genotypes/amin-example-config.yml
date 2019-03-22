@@ -1,3 +1,5 @@
 data_dir: /kwiat/vector/mirror/observatory/vo_min
 fasta_path: /kwiat/1/anopheles/observatory/analysis/20190311-vobs-asia-minimis-resources/Anopheles-minimus-MINIMUS1_SCAFFOLDS_AminM1.fa
 sites_path: /kwiat/1/anopheles/observatory/analysis/20190311-vobs-asia-minimis-resources/aminm1.allsites.nonN.zarr.zip
+gt_suffix: '.zip'
+chunk_width: 50
