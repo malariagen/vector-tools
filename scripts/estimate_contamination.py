@@ -408,10 +408,11 @@ def main():
         # return the llr / ll / estimate
         res.loc[sample] = -min(xv.fun - null, 0), -xv.fun, xv.x * 100
 
+        if args['plot']:
+            plot_allele_balance(flt_gt, flt_ad, output_png, res.iloc[0])
+
     res.to_csv(output_csv)
 
-    if args['plot']:
-        plot_allele_balance(flt_gt, flt_ad, output_png, res.iloc[0])
 
 
 if __name__ == '__main__':
