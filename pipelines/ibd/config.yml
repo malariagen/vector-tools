@@ -1,0 +1,9 @@
+chromosomes: [3R, 3L, 2R, 2L]
+populations: [GHcol, GHgam, BFgam, BFcol, UGgam, GM, GW, KE, CMgam, FRgam, GQgam, AOcol, GAgam, GNgam, GNcol, CIcol]
+release_dir: /kwiat/vector/ag1000g/release/phase2.AR1 
+vcf_path: variation/main/vcf/biallelic/ag1000g.phase2.ar1.pass.biallelic.{chrom}.vcf.gz
+zarr_path: variation/main/zarr2/ag1000g.phase2.ar1.pass.biallelic
+metadata_path: samples/samples.meta.txt
+run_sim: True
+nsets: 10
+sample_number: 250

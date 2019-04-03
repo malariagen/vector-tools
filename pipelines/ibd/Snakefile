@@ -1,0 +1,100 @@
+# Snakefile to perform IBD analysis for all KES samples
+import pandas as pd
+import os
+import random
+random.seed(1)
+
+configfile: "config.yml"
+
+releasedir = config["release_dir"]
+
+phase1vcf = os.path.join(releasedir, config["vcf_path"])
+
+pop_filteredvcf = "_build/{pop}/filtered." + os.path.basename(phase1vcf)
+
+metadata = os.path.join(releasedir, config["metadata_path"])
+df = pd.read_table(metadata)
+g = df.groupby("population")
+
+samples_by_pop = {p: g.ox_code.get_group(p).tolist() for p in g.groups}
+
+if config["run_sim"]:
+  subsamples = {"sub{0}".format(x): df.sample(n=config["sample_number"]).ox_code.tolist() for x in range(config["nsets"])}
+  simulations = list(subsamples.keys())
+  samples_by_pop = {**samples_by_pop, **subsamples}
+else:
+  simulations = []
+
+rule all:
+  input:
+    expand("output/{chrom}/{pop}.ibd", chrom=config["chromosomes"], pop=config["populations"] + simulations),
+    expand("output/{chrom}/{pop}.samples.txt", chrom=config["chromosomes"], pop=config["populations"] + simulations)
+
+
+rule list_samples:
+  output:
+    txt="output/{chrom}/{pop}.samples.txt"
+  input:
+    vcf=pop_filteredvcf
+  params:
+    req="h_vmem=4G"
+  run:
+    import allel
+    vcf = allel.read_vcf(input.vcf, fields="samples")
+    with open(output.txt, "w") as wr:
+      print("\n".join(vcf["samples"].tolist()), file=wr)
+
+
+rule pop_filter_vcf:
+  input:
+    zarr=os.path.join(releasedir, config["zarr_path"]),
+    meta=metadata
+  output:
+    vcf=pop_filteredvcf.replace("vcf.gz", "vcf")
+  params:
+    samples=lambda y: samples_by_pop[y.pop],
+    req="h_vmem=16G"
+  conda:
+    "env.yml"
+  script:
+    "zarr2vcf.py"
+
+rule bgzip_vcf:
+  input:
+    vcf="{vcffile}.vcf"
+  output:
+    vcf="{vcffile}.vcf.gz"
+  params:
+    req="h_vmem=4G"
+  conda:
+    "env.yml"
+  shell:
+    "bgzip {input.vcf}"
+
+rule index_vcf:
+  input:
+    vcf="{vcffile}.vcf.gz"
+  output:
+    tbi="{vcffile}.vcf.gz.tbi"
+  params:
+    req="h_vmem=4G"
+  conda:
+    "env.yml"
+  shell:
+    "tabix -p vcf {input.vcf}"
+
+# perform ibdseq
+rule ibdseq:
+  input:
+    vcf=pop_filteredvcf,
+    tbi=pop_filteredvcf + ".tbi"
+  output:
+    txt="output/{chrom}/{pop}.ibd"
+  params:
+    req="h_vmem=24G",
+    stem="output/{chrom}/{pop}"
+  conda:
+    "env.yml"
+  shell:
+    "ibdseq -Xmx12g gt={input.vcf} out={params.stem} chrom={wildcards.chrom}"
+
