@@ -6,33 +6,41 @@ import pyfaidx
 fa = pyfaidx.Fasta(config["fasta_path"])
 contigs = list(fa.keys())
 
+sampleset = os.path.basename(os.path.dirname(fofn_path))
 fofn = pd.read_csv(config["fofn"], sep="\t")
 samples = fofn["sample"].unique()
+
+if "contigs" not in config:
+  config["contigs"] = list(fa.keys())
 
 
 rule all_merge:
   input:
     expand(
-      os.path.join("callset.zarr/{chrom}/calldata/{field}"),
-      field=["GQ", "AD", "GT"], 
-      chrom=contigs)
+      os.path.join("{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
+      sampleset=[sampleset],
+      field=config["fields"],
+      chrom=config["contigs"])
+
 
 rule all_freqs:
   input:
     expand(
-      os.path.join("allele_frequencies.zarr/{chrom}/AF"),
-      chrom=contigs)
+      os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
+      chrom=contigs,
+      sampleset=[sampleset])
+
 
 rule merge_zarr:
   input:
-    manifest="manifest"
+    manifest="{sampleset}/manifest"
   output:
-    zarr=directory("callset.zarr/{chrom}/calldata/{field}"),
-    done=touch("callset.zarr/{chrom}/calldata/{field}.complete")
+    zarr=directory("{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
+    done=touch("{sampleset}/callset.zarr/{chrom}/calldata/{field}.complete")
   params:
-    samples="manifest",
+    samples=lambda y: os.path.join(y.sampleset, "manifest"),
     input_pattern=lambda y: os.path.join(config["data_dir"], "{sample}" + config["gt_suffix"]),
-    output="callset.zarr",
+    output=lambda y: os.path.join(y.sampleset, "callset.zarr"),
     seqid=lambda y: y.chrom,
     field=lambda y: y.field,
     cname="zstd",
@@ -50,14 +58,14 @@ rule merge_zarr:
 
 rule compute_geno_freqs:
   output:
-    zarr=directory("allele_frequencies.zarr/{chrom}/AF"),
-    done=touch("allele_frequencies.zarr/{chrom}/AF.complete"),
+    zarr=directory("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
+    done=touch("{sampleset}/allele_frequencies.zarr/{chrom}/AF.complete"),
   input:
-    zarr="callset.zarr/{chrom}/calldata/GT",
+    zarr="{sampleset}/callset.zarr/{chrom}/calldata/GT",
     sites=config["sites_path"]
   params:
-    outz="allele_frequencies.zarr",
-    inz="callset.zarr",
+    outz=lambda y: os.path.join(y.sampleset, "allele_frequencies.zarr"),
+    inz=lambda y: os.path.join(y.sampleset, "callset.zarr"),
     req="h_vmem=10G",
     pe=""
   run:
@@ -91,7 +99,7 @@ rule compute_geno_freqs:
 
 rule dump_manifest:
   output:
-    txt="manifest"
+    txt="{sampleset}/manifest"
   params:
     req="h_vmem=4G",
   run:
