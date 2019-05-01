@@ -6,6 +6,7 @@ import pyfaidx
 fa = pyfaidx.Fasta(config["fasta_path"])
 contigs = list(fa.keys())
 
+fofn_path = config["fofn"]
 sampleset = os.path.basename(os.path.dirname(fofn_path))
 fofn = pd.read_csv(config["fofn"], sep="\t")
 samples = fofn["sample"].unique()

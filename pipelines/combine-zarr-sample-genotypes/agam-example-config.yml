@@ -3,5 +3,5 @@ fasta_path: /kwiat/1/anopheles/ag1000g/data/1000g_12_09/release/AR1/genome/agamP
 sites_path: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
 gt_suffix: '.genotypes.zarr.zip'
 chunk_width: 1
-contigs: "2R", "2L", "3R", "3L", "X"
-fields: "GT", "GQ", "AD"
+contigs: ["2R", "2L", "3R", "3L", "X"]
+fields: ["GT", "GQ", "AD"]
