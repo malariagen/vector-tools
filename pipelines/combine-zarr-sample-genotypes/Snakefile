@@ -20,7 +20,8 @@ rule all_merge:
       os.path.join("{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
       sampleset=[sampleset],
       field=config["fields"],
-      chrom=config["contigs"])
+      chrom=config["contigs"]),
+    "{sampleset}/merge_genotypes_config.yml"
 
 
 rule all_freqs:
@@ -28,7 +29,8 @@ rule all_freqs:
     expand(
       os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
       chrom=contigs,
-      sampleset=[sampleset])
+      sampleset=[sampleset]),
+    "{sampleset}/merge_genotypes_config.yml"
 
 
 rule merge_zarr:
@@ -72,6 +74,7 @@ rule compute_geno_freqs:
     import zarr
     import allel
     import numpy as np
+    from pathlib import Path
     
     callset_fn = params.inz
     output_fn = params.outz
@@ -79,7 +82,13 @@ rule compute_geno_freqs:
     
     zh = zarr.open_group(output_fn, "a")
     merged_callset = zarr.open_group(callset_fn, "r")
-    zsites = zarr.open_group(input.sites, "r")
+
+    if Path(input.sites).is_file():
+      store = zarr.ZipStore(input.sites, mode='r')
+      zsites = zarr.Group(store)
+
+    else:
+      zsites = zarr.open_group(input.sites, "r")
     
     gt = allel.GenotypeChunkedArray(merged_callset[chrom]["calldata/GT"])
     positions = zsites[chrom]["variants/POS"]
@@ -97,6 +106,7 @@ rule compute_geno_freqs:
     zch.create_dataset("AF", data=af)
     zch.create_dataset("AC", data=ac)
 
+
 rule dump_manifest:
   output:
     txt="{sampleset}/manifest"
@@ -106,3 +116,15 @@ rule dump_manifest:
     with open(output.txt, mode="w") as wr:
       print("sample_name", file=wr)
       print("\n".join(samples), file=wr)
+
+
+rule write_config:
+  output:
+    cfg="{sampleset}/merge_genotypes_config.yml"
+  params:
+    req="h_vmem=2G"
+  run:
+    import yaml
+    with open(output.cfg, "w") as fh:
+      yaml.dump(config, fh)
+
