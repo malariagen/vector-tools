@@ -28,7 +28,7 @@ rule all_freqs:
   input:
     expand(
       os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-      chrom=config["contigs"]),
+      chrom=config["contigs"],
       sampleset=[sampleset]),
     os.path.join(sampleset, "merge_genotypes_config.yml")
 
