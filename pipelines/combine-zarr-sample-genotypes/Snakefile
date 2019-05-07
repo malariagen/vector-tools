@@ -21,7 +21,7 @@ rule all_merge:
       sampleset=[sampleset],
       field=config["fields"],
       chrom=config["contigs"]),
-    "{sampleset}/merge_genotypes_config.yml"
+    os.path.join(sampleset, "merge_genotypes_config.yml")
 
 
 rule all_freqs:
@@ -30,7 +30,7 @@ rule all_freqs:
       os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
       chrom=contigs,
       sampleset=[sampleset]),
-    "{sampleset}/merge_genotypes_config.yml"
+    os.path.join(sampleset, "merge_genotypes_config.yml")
 
 
 rule merge_zarr:
