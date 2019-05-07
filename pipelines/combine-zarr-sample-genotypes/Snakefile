@@ -28,7 +28,7 @@ rule all_freqs:
   input:
     expand(
       os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-      chrom=contigs,
+      chrom=config["contigs"]),
       sampleset=[sampleset]),
     os.path.join(sampleset, "merge_genotypes_config.yml")
 
@@ -50,7 +50,7 @@ rule merge_zarr:
     chunk_width=config["chunk_width"],
     shuffle=0,
     num_workers=4,
-    req="h_vmem=4G",
+    req="h_vmem=6G",
     pe="-pe simple_pe 4"
   conda:
     "env.yml"
