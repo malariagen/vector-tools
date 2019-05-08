@@ -58,7 +58,7 @@ rule merge_zarr:
     "../../scripts/combine_zarr.py"
 
 
-rule compute_geno_freqs:
+rule compute_allele_freqs:
   output:
     zarr=directory("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
     done=touch("{sampleset}/allele_frequencies.zarr/{chrom}/AF.complete"),
@@ -90,14 +90,14 @@ rule compute_geno_freqs:
     else:
       zsites = zarr.open_group(input.sites, "r")
     
-    gt = allel.GenotypeChunkedArray(merged_callset[chrom]["calldata/GT"])
-    positions = zsites[chrom]["variants/POS"]
+    gt = allel.GenotypeDaskArray(merged_callset[chrom]["calldata/GT"])
+    positions = zsites[chrom]["variants/POS"][:]
 
-    if not np.any(gt.is_called()):
+    if not gt.is_called().any().compute():
       ac = np.zeros((positions.shape[0], 4), dtype="int")
       af = np.zeros((positions.shape[0], 4))
     else:
-      ac = gt.count_alleles(max_allele=3)
+      ac = gt.count_alleles(max_allele=3).compute()
       af = ac.to_frequencies()    
 
     zch = zh.require_group(chrom)
