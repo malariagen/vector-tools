@@ -20,15 +20,17 @@ rule all_merge:
       os.path.join("{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
       sampleset=[sampleset],
       field=config["fields"],
-      chrom=config["contigs"])
+      chrom=config["contigs"]),
+    os.path.join(sampleset, "merge_genotypes_config.yml")
 
 
 rule all_freqs:
   input:
     expand(
       os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-      chrom=contigs,
-      sampleset=[sampleset])
+      chrom=config["contigs"],
+      sampleset=[sampleset]),
+    os.path.join(sampleset, "merge_genotypes_config.yml")
 
 
 rule merge_zarr:
@@ -48,7 +50,7 @@ rule merge_zarr:
     chunk_width=config["chunk_width"],
     shuffle=0,
     num_workers=4,
-    req="h_vmem=4G",
+    req="h_vmem=6G",
     pe="-pe simple_pe 4"
   conda:
     "env.yml"
@@ -56,7 +58,7 @@ rule merge_zarr:
     "../../scripts/combine_zarr.py"
 
 
-rule compute_geno_freqs:
+rule compute_allele_freqs:
   output:
     zarr=directory("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
     done=touch("{sampleset}/allele_frequencies.zarr/{chrom}/AF.complete"),
@@ -72,6 +74,7 @@ rule compute_geno_freqs:
     import zarr
     import allel
     import numpy as np
+    from pathlib import Path
     
     callset_fn = params.inz
     output_fn = params.outz
@@ -79,16 +82,22 @@ rule compute_geno_freqs:
     
     zh = zarr.open_group(output_fn, "a")
     merged_callset = zarr.open_group(callset_fn, "r")
-    zsites = zarr.open_group(input.sites, "r")
-    
-    gt = allel.GenotypeChunkedArray(merged_callset[chrom]["calldata/GT"])
-    positions = zsites[chrom]["variants/POS"]
 
-    if not np.any(gt.is_called()):
+    if Path(input.sites).is_file():
+      store = zarr.ZipStore(input.sites, mode='r')
+      zsites = zarr.Group(store)
+
+    else:
+      zsites = zarr.open_group(input.sites, "r")
+    
+    gt = allel.GenotypeDaskArray(merged_callset[chrom]["calldata/GT"])
+    positions = zsites[chrom]["variants/POS"][:]
+
+    if not gt.is_called().any().compute():
       ac = np.zeros((positions.shape[0], 4), dtype="int")
       af = np.zeros((positions.shape[0], 4))
     else:
-      ac = gt.count_alleles(max_allele=3)
+      ac = gt.count_alleles(max_allele=3).compute()
       af = ac.to_frequencies()    
 
     zch = zh.require_group(chrom)
@@ -96,6 +105,7 @@ rule compute_geno_freqs:
     zch.create_dataset("POS", data=positions)
     zch.create_dataset("AF", data=af)
     zch.create_dataset("AC", data=ac)
+
 
 rule dump_manifest:
   output:
@@ -106,3 +116,15 @@ rule dump_manifest:
     with open(output.txt, mode="w") as wr:
       print("sample_name", file=wr)
       print("\n".join(samples), file=wr)
+
+
+rule write_config:
+  output:
+    cfg="{sampleset}/merge_genotypes_config.yml"
+  params:
+    req="h_vmem=2G"
+  run:
+    import yaml
+    with open(output.cfg, "w") as fh:
+      yaml.dump(config, fh)
+
