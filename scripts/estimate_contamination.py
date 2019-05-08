@@ -353,8 +353,13 @@ def main():
     log("Ordering alleles by frequency for REF/ALT/ERR")
     min_cov_reached = allele_depth_pass[:, 0].sum(axis=1) >= args['minimum_coverage']
 
-    major_allele_indexes = np.argsort(alt_frequency_pass, axis=1)[:, ::-1]
-    allele_depth_pass_reordered = np.array([np.take(q, ix) for q, ix in zip(allele_depth_pass, major_allele_indexes)])
+    ix_cols_sort = np.argsort(alt_frequency_pass, axis=1)[:, ::-1]
+
+    # indices of all rows
+    ix_rows = np.arange(alt_frequency_pass.shape[0])
+
+    # apply the sorting operation
+    allele_depth_pass_reordered = ac[ix_rows[:, np.newaxis], ix_cols_sort]
 
     # Define allele counts: sum final 2 columns, representing ref/alt/error
     allele_depths = allele_depth_pass_reordered[:, :3]
