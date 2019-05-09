@@ -359,7 +359,7 @@ def main():
     ix_rows = np.arange(alt_frequency_pass.shape[0])
 
     # apply the sorting operation
-    allele_depth_pass_reordered = alt_frequency_pass[ix_rows[:, np.newaxis], ix_cols_sort]
+    allele_depth_pass_reordered = np.squeeze(allele_depth_pass)[ix_rows[:, np.newaxis], ix_cols_sort]
 
     # Define allele counts: sum final 2 columns, representing ref/alt/error
     allele_depths = allele_depth_pass_reordered[:, :3]
