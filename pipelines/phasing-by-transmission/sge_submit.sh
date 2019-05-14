@@ -1,12 +1,17 @@
 set -e
 
-if [ -z ${SGE_log_dir+x} ]; then echo "SGE_log_dir is unset: default to home" && SGE_log_dir=$HOME; else echo "log dir is set to '$SGE_log_dir'"; fi
+if [[ -z "${SGE_LOG}" ]]; then
+  SGE_LOG="~/"
+  echo "SGE_LOG not set. The log location defaults to $SGE_LOG. Remember this variable needs to be exported."
+else
+  echo "SGE_LOG set as $SGE_LOG"
+fi
 
-mkdir -p $SGE_log_dir
+mkdir -p $SGE_LOG
 
 #! /bin/bash
-snakemake $@ \
-    --cluster 'qsub -v PATH="binder/deps/conda/bin::$PATH" -j y -o $SGE_log_dir -b n -l {params.req} -S /bin/bash' \
+snakemake --snakefile `dirname $0`/Snakefile $@ \
+    --cluster 'qsub -v PATH="binder/deps/conda/bin::$PATH" -j y -o $SGE_LOG -b n -l {params.req} -S /bin/bash' \
     --jobs 10 \
     --latency-wait 60 \
     --restart-times 0 \
