@@ -10,25 +10,23 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-configfile: "config.yaml"
-
 meta = pd.read_csv(config["metadata"], sep="\t")
 cross_ids = meta.cross.unique()
 
 rule all:
     input:
-        table="output/mendel_errors.txt",
-        zipped="output/ag1000g.crosses.phase2.ar1.haplotypes.zip",
-        plots=expand("output/images/{chrom}/{cross}_maternal_painting.png", chrom=config["chromosomes"], cross=cross_ids)
+        table="mendel_errors.txt",
+        zipped="ag1000g.crosses.phase2.ar1.haplotypes.zip",
+        plots=expand("images/{chrom}/{cross}_maternal_painting.png", chrom=config["chromosomes"], cross=cross_ids)
 
 rule all_text:
     input:
-        expand("output/shapeit/ag1000g.phase2.ar1.haplotypes.{chrom}.gz", chrom=config["chromosomes"]),
-        expand("output/shapeit/ag1000g.phase2.ar1.samples.{chrom}.gz", chrom=config["chromosomes"])
+        expand("shapeit/ag1000g.phase2.ar1.haplotypes.{chrom}.gz", chrom=config["chromosomes"]),
+        expand("shapeit/ag1000g.phase2.ar1.samples.{chrom}.gz", chrom=config["chromosomes"])
 
 rule make_plots:
     input:
-        plots=expand("output/images/{chrom}/{cross}_maternal_painting.png", chrom=config["chromosomes"], cross=cross_ids)
+        plots=expand("images/{chrom}/{cross}_maternal_painting.png", chrom=config["chromosomes"], cross=cross_ids)
 
 # Run for each cross/chrom
 rule phase:
@@ -36,8 +34,8 @@ rule phase:
         genotypes=config["genotypes"],
         metadata=config["metadata"]
     output:
-        zarr=directory("output/{chrom}/{cross}.zarr2"),
-        mark=touch("output/{chrom}/{cross}.zarr2.ok")
+        zarr=directory("{chrom}/{cross}.zarr2"),
+        mark=touch("{chrom}/{cross}.zarr2.ok")
     params:
         req="h_vmem=8G",
         mingq=config["mingq"],
@@ -101,9 +99,9 @@ rule phase:
 
 rule mendelian_error_report:
     output:
-        table="output/mendel_errors.txt"
+        table="mendel_errors.txt"
     input:
-        zarr=expand("output/{chrom}/{cross}.zarr2", chrom=config["chromosomes"], cross=cross_ids),
+        zarr=expand("{chrom}/{cross}.zarr2", chrom=config["chromosomes"], cross=cross_ids),
         metadata=config["metadata"]
     params:
         req="h_vmem=6G",
@@ -118,7 +116,7 @@ rule mendelian_error_report:
 
         for fn in input.zarr:
 
-            matchObj = re.match( r'output/(.+)/(.+)\.zarr2', fn)
+            matchObj = re.match( r'(.+)/(.+)\.zarr2', fn)
             _chrom, _cross = matchObj.group(1), matchObj.group(2)
 
             root = zarr.open_group(fn, "r")
@@ -155,10 +153,10 @@ rule mendelian_error_report:
 # combine all the phased data into a single zarr file for release.
 rule combine_phased_data:
     output:
-        zarr=directory("output/ag1000g.crosses.phase2.ar1.haplotypes.zarr2"),
-        mark=touch("output/ag1000g.crosses.phase2.ar1.haplotypes.zarr2.ok")
+        zarr=directory("ag1000g.crosses.phase2.ar1.haplotypes.zarr2"),
+        mark=touch("ag1000g.crosses.phase2.ar1.haplotypes.zarr2.ok")
     input:
-        zarr=expand("output/{chrom}/{cross}.zarr2", chrom=config["chromosomes"], cross=cross_ids),
+        zarr=expand("{chrom}/{cross}.zarr2", chrom=config["chromosomes"], cross=cross_ids),
         metadata=config["metadata"]
     params:
         req="h_vmem=6G"
@@ -169,7 +167,7 @@ rule combine_phased_data:
 
         filenames = {}
         for fn in input.zarr:
-            matchObj = re.match( r'output/(.+)/(.+)\.zarr2', fn)
+            matchObj = re.match( r'(.+)/(.+)\.zarr2', fn)
             _chrom, _cross = matchObj.group(1), matchObj.group(2)
             filenames[_chrom, _cross] = fn
             
@@ -222,7 +220,7 @@ rule zipzarr:
     params:
         req="h_vmem=6G"
     output:
-        zipped="output/ag1000g.crosses.phase2.ar1.haplotypes.zip"
+        zipped="ag1000g.crosses.phase2.ar1.haplotypes.zip"
     shell:
         "cd {input} && zip -rm0 ../ag1000g.crosses.phase2.ar1.haplotypes.zip .; cd -;"
         "rm -r {input}"
@@ -233,21 +231,21 @@ rule zarr_to_haplotypes_txt:
     input:
         zarr=rules.zipzarr.output.zipped
     output:
-        txt="output/shapeit/ag1000g.phase2.ar1.haplotypes.{chrom}.gz"
+        txt="shapeit/ag1000g.phase2.ar1.haplotypes.{chrom}.gz"
     params:
         req="h_vmem=8G"
     script:
-        "scripts/zarr2haptxt.py"
+        "../../scripts/zarr2haptxt.py"
 
 rule zarr_to_samples_txt:
     input:
         zarr=rules.zipzarr.output.zipped
     output:
-        txt="output/shapeit/ag1000g.phase2.ar1.samples.{chrom}.gz"
+        txt="shapeit/ag1000g.phase2.ar1.samples.{chrom}.gz"
     params:
         req="h_vmem=8G"
     script:
-        "scripts/zarr2samtxt.py"
+        "../../scripts/zarr2samtxt.py"
 
 def plot_transmission(painting, ax=None, title=None, palette_name='colorblind'):
     
@@ -280,10 +278,10 @@ def plot_transmission(painting, ax=None, title=None, palette_name='colorblind'):
 
 rule paint_transmission:
     output:
-        mother=["output/images/{chrom}/{cross}_maternal_painting.png", "output/images/{chrom}/{cross}_maternal_painting_hets.png"],
-        father=["output/images/{chrom}/{cross}_paternal_painting.png", "output/images/{chrom}/{cross}_paternal_painting_hets.png"]
+        mother=["images/{chrom}/{cross}_maternal_painting.png", "images/{chrom}/{cross}_maternal_painting_hets.png"],
+        father=["images/{chrom}/{cross}_paternal_painting.png", "images/{chrom}/{cross}_paternal_painting_hets.png"]
     input:
-        zarr="output/{chrom}/{cross}.zarr2"
+        zarr="{chrom}/{cross}.zarr2"
     params:
         req="h_vmem=4G"
     run:
