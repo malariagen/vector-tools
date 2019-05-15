@@ -1,0 +1,30 @@
+configfile: "config.yaml"
+    
+rule all:
+    input:
+        txt=expand("output/{chrom}_table_switch_errors.txt", chrom=config["chromosomes"])
+
+rule evaluate:
+    input:
+        test=config["test"],
+        eval=config["eval"],
+        fasta=config["fasta"],
+        access=config["accessibility"],
+        roh=config["roh"]
+    output:
+        txt="output/{chrom}_table_switch_errors.txt"
+    params:
+        req="4G",
+        overlap=250000,
+        windowsize=500000
+    shell:
+        "python evaluate_phasing_performance.py "
+        "--eval {input.eval} "
+        "--test {input.test} "
+        "--fasta {input.fasta} "
+        "--output {output.txt} "
+        "--accessibility {input.access} "
+        "-ws {params.windowsize} "
+        "-wo {params.overlap} "
+        "--chr {wildcards.chrom} "
+        "--roh {input.roh}"

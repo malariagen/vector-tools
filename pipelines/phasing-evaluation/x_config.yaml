@@ -1,0 +1,9 @@
+accessibility: /kwiat/vector/ag1000g/release/phase1.AR3/accessibility/accessibility.h5
+chromosomes: [2L, 2R, 3L, 3R]
+# eval: /kwiat/vector/ag1000g/release/phase1.AR3/haplotypes/crosses/hdf5/ag1000g.crosses.phase1.ar3.haplotypes.{chrom}.h5 # phase1 hdf5 release
+# eval: /kwiat/vector/ag1000g/analysis/20170508-phase2-AR1-gt-crosses/phase1.AR3-parents-progeny/output/cross.haplotypes.zarr2 # phase1 zarr
+eval: /kwiat/vector/ag1000g/analysis/20170508-phase2-AR1-gt-crosses/phase2.AR1-parents-progeny/output/cross.haplotypes.zarr2 # phase2 zarr
+test: ../autosomal_phasing/shapeit/{chrom}_haplotypes_ag1000g.h5 # phase 2 AR1
+# test: /kwiat/vector/ag1000g/release/phase1.AR3/haplotypes/main/hdf5/ag1000g.phase1.ar3.haplotypes.h5 # phase1 AR3 release
+fasta: /kwiat/vector/ag1000g/release/phase1.AR3/genome/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa
+# roh: /kwiat/vector/ag1000g/release/phase1.AR3.1/roh/crosses/runs_of_homozygosity.h5
