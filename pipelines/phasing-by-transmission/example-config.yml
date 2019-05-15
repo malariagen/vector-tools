@@ -1,4 +1,5 @@
-genotypes: /kwiat/vector/ag1000g/release/phase2.AR1/variation/crosses/hdf5/ag1000g.crosses.phase2.ar1sites.{chrom}.h5
+#genotypes: /kwiat/vector/ag1000g/release/phase2.AR1/variation/crosses/hdf5/ag1000g.crosses.phase2.ar1sites.{chrom}.h5
+genotypes: /kwiat/1/anopheles/ag1000g/data/analysis/20170508-phase2-AR1-gt-crosses/gatk-3.5/hdf5/ag1000g.crosses.phase2.ar1sites.{chrom}.h5
 metadata: /kwiat/vector/ag1000g/release/phase2.AR1/samples/cross.samples.meta.txt
 chromosomes: ["2R", "2L", "3R", "3L"]
 phasing_window_size: 150
