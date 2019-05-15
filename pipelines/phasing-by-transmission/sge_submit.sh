@@ -1,7 +1,7 @@
 set -e
 
 if [[ -z "${SGE_LOG}" ]]; then
-  SGE_LOG="~/"
+  SGE_LOG=$HOME
   echo "SGE_LOG not set. The log location defaults to $SGE_LOG. Remember this variable needs to be exported."
 else
   echo "SGE_LOG set as $SGE_LOG"
