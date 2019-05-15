@@ -192,7 +192,7 @@ rule combine_phased_data:
                 gt = fh["phased_genotypes"]
 
                 # put in array (not created yet!)
-                gt_z = calldata.require_dataset("genotype", shape=(gt.shape[0], sample_names.size, 2), chunks=(100000, 1, 2), dtype="uint8")
+                gt_z = calldata.require_dataset("genotype", shape=(gt.shape[0], sample_names.size, 2), chunks=(100000, 1, 2), dtype="int8")
                
                 # find indices
                 # NOTE : Much more efficient to concatenate, then sort at end.
