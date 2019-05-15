@@ -69,7 +69,7 @@ rule phase:
         loc_bial = ac.max_allele() < 2
 
         loc_pass = callset['variants/FILTER_PASS'][:]
-        loc = loc_seg & loc_pass
+        loc = loc_seg & loc_pass & loc_bial
 
         positions = allel.SortedIndex(callset["variants/POS"]).compress(loc, axis=0)
         alternate = np.compress(loc, callset["variants/ALT"][:], axis=0)[:, 0]
@@ -79,7 +79,7 @@ rule phase:
 
         # here we apply the mask
         # apply a mask to sites that fail to meet GQ filter.
-        gq = allel.chunked.ChunkedArrayWrapper(callset["calldata/GQ"]).subset(sel1=parent_indices)
+        gq = allel.chunked.ChunkedArrayWrapper(callset["calldata/GQ"]).subset(sel0=loc, sel1=parent_indices)
         genotypes_cross_pass[gq[:, 0] < params.mingq, 0] = (-1, -1)
         genotypes_cross_pass[gq[:, 1] < params.mingq, 1] = (-1, -1)
 
