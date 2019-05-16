@@ -1,4 +1,3 @@
-
 __author__ = 'Nicholas Harding'
 __version__ = 'v1.3.0'
 
@@ -19,6 +18,12 @@ import pyfasta
 import re
 from intervaltree import IntervalTree
 
+
+def log(*msg):
+    print(*msg, file=sys.stderr)
+    sys.stderr.flush()
+
+
 def read_roh_h5(path, names, chrom):
     roh_fh = h5py.File(path, "r")
     roh = dict()
@@ -28,6 +33,7 @@ def read_roh_h5(path, names, chrom):
         except KeyError:
             roh[s] = None
     return roh
+
 
 def read_roh_zarr(path, names, chrom):
     roh_fh = zarr.open_group(path, "r")
@@ -40,13 +46,16 @@ def read_roh_zarr(path, names, chrom):
             roh[s] = None
     return roh
 
+
 def haldane(r):
     return -np.log(1-(2*r))/2
+
 
 def check_equivalency(a, b):
     assert a.ndim == b.ndim == 2
     assert np.array_equal(a.shape, b.shape)
     assert np.array_equal(a.sum(axis=1), b.sum(axis=1))
+
 
 def compute_allele_agreement(hap, geno):
 
@@ -58,6 +67,7 @@ def compute_allele_agreement(hap, geno):
     # 2 = unkn, 1 = 2nd allele, 0 = 1st allele, -2 = Fail- both!
     assert not np.any(-2 == out), "Error: some homozygotes must be present"
     return out
+
 
 def determine_haplotype_switch(geno_a, geno_b):
     """
@@ -137,6 +147,7 @@ def evaluate_markers(markers, error_positions):
 
     return errors
 
+
 def derive_position_switch_array(alleles):
     # The position switch array describes the runs of allele ids.
     # Any non inherited alleles are ignored...just masked.
@@ -207,146 +218,172 @@ def open_group(path):
         return h5py.File(path, "r")
     elif path.endswith(("zarr2", "zarr")):
         return zarr.open_group(path, "r")
+    elif path.endswith("zip"):
+        zz = zarr.ZipStore(path)
+        return zarr.Group(zz)
     else:
         raise ValueError("Bad filepath provided: {0}. Only hdf5/zarr supported.".format(path))
 
-parser = argparse.ArgumentParser(
-    description='Evaluation pipeline for phasing evaluation')
 
-# data:
-parser.add_argument('--test', '-T', help='input hdf5 file', action='store',
-                    dest="test", default=None, type=str)
+def main():
 
-parser.add_argument('--eval', '-E', help='input hdf5 file to evaluate against',
-                    action='store', dest="eval", default=None, type=str)
+    parser = argparse.ArgumentParser(
+        description='Evaluation pipeline for phasing evaluation')
+    
+    # data:
+    parser.add_argument('--test', '-T', help='input hdf5 file', action='store',
+                        dest="test", default=None, type=str)
+    
+    parser.add_argument('--eval', '-E', help='input hdf5 file to evaluate against',
+                        action='store', dest="eval", default=None, type=str)
+    
+    parser.add_argument('--output', '-O', help='output filename', action="store",
+                        dest="output", default=None, type=str, required=True)
+    
+    parser.add_argument('--fasta', '-F', action='store', default=None,
+                        dest='fasta', help='FASTA file', type=str,
+                        required=True)
+    
+    parser.add_argument('--chr', '-C', default=None, required=True, action="store",
+                        dest='chrom', help='Which contig to evaluate')
+    
+    # non-required parameters
+    parser.add_argument('--accessibility', '-A', action='store', default=None,
+                        dest='accessibility', help='Accessibility h5', type=str,
+                        required=False)
+    
+    parser.add_argument('--samples', '-S', action='store', nargs="+", default=None,
+                        dest='samples', required=False,
+                        help='Which samples to evaluate.')
+    
+    parser.add_argument('--roh', '-R', action='store',
+                        default=None, dest='roh', type=str,
+                        help='Path to ROH file for calculating switch distance')
+    
+    parser.add_argument('--overlap', '-wo', action='store',
+                        default=250000, dest='overlap', type=int,
+                        help='Overlap between windows.')
+    
+    parser.add_argument('--windowsize', '-ws', action='store', default=500000,
+                        type=int, dest='winsize',
+                        help='Evenly spaced windows across genome')
+    
+    try:
+        args = {
+            "test": snakemake.input.test,
+            "eval": snakemake.input.eval,
+            "output": snakemake.output.txt,
+            "fasta": snakemake.input.fasta,
+            "chrom": snakemake.wildcards.chrom,
+            "accessibility": snakemake.input.access,
+            "roh":  snakemake.input.roh,
+            "overlap": snakemake.params.overlap,
+            "winsize": snakemake.params.windowsize,
+            "samples": None
+        }
+        log("Args read via snakemake")
+    except NameError:
+        args = vars(parser.parse_args())
+        log("Args read via command line")
 
-parser.add_argument('--output', '-O', help='output filename', action="store",
-                    dest="output", default=None, type=str, required=True)
-
-parser.add_argument('--fasta', '-F', action='store', default=None,
-                    dest='fasta', help='FASTA file', type=str,
-                    required=True)
-
-parser.add_argument('--chr', '-C', default=None, required=True, action="store",
-                    dest='chrom', help='Which contig to evaluate')
-
-# non-required parameters
-parser.add_argument('--accessibility', '-A', action='store', default=None,
-                    dest='accessibility', help='Accessibility h5', type=str,
-                    required=False)
-
-parser.add_argument('--samples', '-S', action='store', nargs="+", default=None,
-                    dest='samples', required=False,
-                    help='Which samples to evaluate.')
-
-parser.add_argument('--roh', '-R', action='store',
-                    default=None, dest='roh', type=str,
-                    help='Path to ROH file for calculating switch distance')
-
-parser.add_argument('--overlap', '-wo', action='store',
-                    default=250000, dest='overlap', type=int,
-                    help='Overlap between windows.')
-
-parser.add_argument('--windowsize', '-ws', action='store', default=500000,
-                    type=int, dest='winsize',
-                    help='Evenly spaced windows across genome')
-
-args = parser.parse_args()
-genome = pyfasta.Fasta(args.fasta)
-contig_length = len(genome[args.chrom])
-reference_gaps = find_reference_gaps(genome[args.chrom])
-
-test_fh = open_group(args.test)
-eval_fh = open_group(args.eval)
-
-dtype = eval_fh[args.chrom]["samples"][:].dtype
-eval_samples = eval_fh[args.chrom]["samples"][:].tolist()
-test_samples = test_fh[args.chrom]['samples'][:].astype(dtype).tolist()
-
-if args.samples is not None:
-    test_idx = [test_samples.index(s.encode()) for s in args.samples]
-    eval_idx = [eval_samples.index(s.encode()) for s in args.samples]
-    sample_names = [s.encode() for s in args.samples]
-else:
-    intersection = np.intersect1d(eval_samples, test_samples)
-    test_idx = [test_samples.index(s) for s in intersection]
-    eval_idx = [eval_samples.index(s) for s in intersection]
-    sample_names = intersection
-
-if args.roh is not None:
-    if args.roh.endswith(".h5"):
-        roh = read_roh_h5(args.roh, sample_names, args.chrom)
-    elif args.roh.endswith(".zarr2"):
-        roh = read_roh_zarr(args.roh, sample_names, args.chrom)
+    genome = pyfasta.Fasta(args["fasta"])
+    contig_length = len(genome[args["chrom"]])
+    reference_gaps = find_reference_gaps(genome[args["chrom"]])
+    
+    test_fh = open_group(args["test"])
+    eval_fh = open_group(args["eval"])
+    
+    dtype = eval_fh[args["chrom"]]["samples"][:].dtype
+    eval_samples = eval_fh[args["chrom"]]["samples"][:].tolist()
+    test_samples = test_fh[args["chrom"]]['samples'][:].astype(dtype).tolist()
+    
+    if args["samples"] is not None:
+        test_idx = [test_samples.index(s.encode()) for s in args["samples"]]
+        eval_idx = [eval_samples.index(s.encode()) for s in args["samples"]]
+        sample_names = [s.encode() for s in args["samples"]]
     else:
-        raise ValueError("Bad filepath provided: {0}. Only hdf5/zarr supported.".format(path))
-else:
-    roh = {s: None for s in sample_names}
+        intersection = np.intersect1d(eval_samples, test_samples)
+        test_idx = [test_samples.index(s) for s in intersection]
+        eval_idx = [eval_samples.index(s) for s in intersection]
+        sample_names = intersection
+    
+    if args["roh"] is not None:
+        if args["roh"].endswith(".h5"):
+            roh = read_roh_h5(args["roh"], sample_names, args["chrom"])
+        elif args["roh"].endswith(".zarr2") or args["roh"].endswith(".zip"):
+            roh = read_roh_zarr(args["roh"], sample_names, args["chrom"])
+        else:
+            raise ValueError("Bad filepath provided: {0}. Only hdf5/zarr supported.".format(path))
+    else:
+        roh = {s: None for s in sample_names}
+    
+    
+    test_genotypes = allel.GenotypeChunkedArray(test_fh[args["chrom"]]["calldata"]["genotype"])
+    eval_genotypes = allel.GenotypeChunkedArray(eval_fh[args["chrom"]]["calldata"]["genotype"])
+    
+    # now lets line up postions...
+    e_pos = allel.SortedIndex(eval_fh[args["chrom"]]['variants']['POS'])
+    t_pos = allel.SortedIndex(test_fh[args["chrom"]]['variants']['POS'])
+    loc_e, loc_t = e_pos.locate_intersection(t_pos)
+    
+    # Subset data
+    test_gt_subset = test_genotypes.subset(loc_t, test_idx)
+    eval_gt_subset = eval_genotypes.subset(loc_e, eval_idx)
+    
+    positions = e_pos.compress(loc_e)
+    
+    # conversely all eval MUST be in test set.
+    # Not true - as multiallelics are present too.
+    assert eval_gt_subset.shape == test_gt_subset.shape, \
+        ("Not same shape:", eval_gt_subset.shape, test_gt_subset.shape)
+    
+    is_missing = eval_gt_subset.is_missing()
+    
+    scan_windows = allel.stats.window.position_windows(pos=None, start=1,
+        stop=contig_length, size=args["winsize"], step=args["overlap"])
+    
+    res = np.empty((len(sample_names), 3, scan_windows.shape[0]))
+    
+    for idx, sid in enumerate(sample_names):
+    
+        # Markers are hets in the evaluation set.
+        # There is a check for equivalency 
+        hz = eval_gt_subset[:, idx].is_het()
+        marker_positions = np.compress(hz, positions)
+        sampleval_gt_subset = np.compress(hz, test_gt_subset[:, idx], axis=0)
+        sample_gs = np.compress(hz, eval_gt_subset[:, idx], axis=0)
+    
+        switch = determine_haplotype_switch(sample_gs, sampleval_gt_subset)
+    
+        res[idx, :, :] = calculate_switch_distances(
+            windows=scan_windows, 
+            switch_array=switch, 
+            marker_pos=marker_positions,
+            rohz=roh[sid], 
+            gaps=reference_gaps)
+    
+    # now summarize across the samples dimension.
+    sum_r = res.sum(axis=0)
+    
+    distance, n_markers, n_errors = sum_r
+    n_markers = n_markers.astype("int")
+    n_errors = n_errors.astype("int")
+    
+    marker_err_rate = n_errors/(n_markers + n_errors)
+    
+    mean_marker_d = distance/n_markers
+    mean_switch_d = mean_marker_d/marker_err_rate
+    
+    df = pd.DataFrame.from_items((("start", scan_windows.T[0]),
+                                  ("stop", scan_windows.T[1]),
+                                  ("n_markers", n_markers),
+                                  ("n_errors", n_errors),
+                                  ("err_rate", marker_err_rate),
+                                  ("distance", distance),
+                                  ("mean_marker_dist", mean_marker_d),
+                                  ("mean_switch_dist", mean_switch_d)))
+    
+    df.to_csv(args["output"], sep="\t", index=False)
 
-
-test_genotypes = allel.GenotypeChunkedArray(test_fh[args.chrom]["calldata"]["genotype"])
-eval_genotypes = allel.GenotypeChunkedArray(eval_fh[args.chrom]["calldata"]["genotype"])
-
-# now lets line up postions...
-e_pos = allel.SortedIndex(eval_fh[args.chrom]['variants']['POS'])
-t_pos = allel.SortedIndex(test_fh[args.chrom]['variants']['POS'])
-loc_e, loc_t = e_pos.locate_intersection(t_pos)
-
-# Subset data
-test_gt_subset = test_genotypes.subset(loc_t, test_idx)
-eval_gt_subset = eval_genotypes.subset(loc_e, eval_idx)
-
-positions = e_pos.compress(loc_e)
-
-# conversely all eval MUST be in test set.
-# Not true - as multiallelics are present too.
-assert eval_gt_subset.shape == test_gt_subset.shape, \
-    ("Not same shape:", eval_gt_subset.shape, test_gt_subset.shape)
-
-is_missing = eval_gt_subset.is_missing()
-
-scan_windows = allel.stats.window.position_windows(pos=None, start=1,
-    stop=contig_length, size=args.winsize, step=args.overlap)
-
-res = np.empty((len(sample_names), 3, scan_windows.shape[0]))
-
-for idx, sid in enumerate(sample_names):
-
-    # Markers are hets in the evaluation set.
-    # There is a check for equivalency 
-    hz = eval_gt_subset[:, idx].is_het()
-    marker_positions = np.compress(hz, positions)
-    sampleval_gt_subset = np.compress(hz, test_gt_subset[:, idx], axis=0)
-    sample_gs = np.compress(hz, eval_gt_subset[:, idx], axis=0)
-
-    switch = determine_haplotype_switch(sample_gs, sampleval_gt_subset)
-
-    res[idx, :, :] = calculate_switch_distances(
-        windows=scan_windows, 
-        switch_array=switch, 
-        marker_pos=marker_positions,
-        rohz=roh[sid], 
-        gaps=reference_gaps)
-
-# now summarize across the samples dimension.
-sum_r = res.sum(axis=0)
-
-distance, n_markers, n_errors = sum_r
-n_markers = n_markers.astype("int")
-n_errors = n_errors.astype("int")
-
-marker_err_rate = n_errors/(n_markers + n_errors)
-
-mean_marker_d = distance/n_markers
-mean_switch_d = mean_marker_d/marker_err_rate
-
-df = pd.DataFrame.from_items((("start", scan_windows.T[0]),
-                              ("stop", scan_windows.T[1]),
-                              ("n_markers", n_markers),
-                              ("n_errors", n_errors),
-                              ("err_rate", marker_err_rate),
-                              ("distance", distance),
-                              ("mean_marker_dist", mean_marker_d),
-                              ("mean_switch_dist", mean_switch_d)))
-
-df.to_csv(args.output, sep="\t", index=False)
+if __name__ == '__main__':
+    main()
