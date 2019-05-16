@@ -54,19 +54,9 @@ def haldane(r):
 def check_equivalency(a, b):
     assert a.ndim == b.ndim == 2
     assert np.array_equal(a.shape, b.shape)
-    assert np.array_equal(a.sum(axis=1), b.sum(axis=1))
-
-
-def compute_allele_agreement(hap, geno):
-
-    a = hap == np.take(geno, 0, axis=1)
-    b = hap == np.take(geno, 1, axis=1)
-    # a = 0, b = 1, a & b == err, not a | b = 2.
-
-    out = 4 - ((a + 1) * (b + 2))
-    # 2 = unkn, 1 = 2nd allele, 0 = 1st allele, -2 = Fail- both!
-    assert not np.any(-2 == out), "Error: some homozygotes must be present"
-    return out
+    assert np.array_equal(
+        a.to_allele_counts(), 
+        b.to_allele_counts())
 
 
 def determine_haplotype_switch(geno_a, geno_b):
@@ -85,7 +75,9 @@ def determine_haplotype_switch(geno_a, geno_b):
 
     # check for equivalence
     check_equivalency(geno_a, geno_b)
-    return compute_allele_agreement(np.take(geno_a, 0, axis=1), geno_b)
+    p = allel.paint_transmission(geno_a, geno_b)
+    transitions = allel.tabulate_state_transitions(p[:, 0], states={1, 2})
+    return transitions.ridx.values
 
 
 def find_reference_gaps(genome_fa):
@@ -148,22 +140,6 @@ def evaluate_markers(markers, error_positions):
     return errors
 
 
-def derive_position_switch_array(alleles):
-    # The position switch array describes the runs of allele ids.
-    # Any non inherited alleles are ignored...just masked.
-    # consistent_alleles = alleles != 2
-    # a = np.compress(consistent_alleles, alleles)
-    # if consistent_alleles.any():
-    #     print "{0} non consistent site(s), either mutation or genotype " \
-    #           "error. These are ignored for purposes of switches.".format(
-    #           np.invert(consistent_alleles).sum())
-    #
-    m = alleles[:-1] != alleles[1:]
-    co = np.where(np.concatenate(([False], m, [True])))[0]
-    ans = np.diff(np.insert(co, 0, 0))
-    return ans
-
-
 def calculate_switch_distances(windows, switch_array, marker_pos, rohz, gaps):
 
     marker_pos = allel.SortedIndex(marker_pos)
@@ -173,8 +149,7 @@ def calculate_switch_distances(windows, switch_array, marker_pos, rohz, gaps):
     marker_dist = np.zeros(windows.shape[0], dtype="float")
     error_count = np.zeros(windows.shape[0], dtype="int")
 
-    pos_sw = derive_position_switch_array(switch_array)
-    pos_errors = np.take(marker_pos, pos_sw[:-1].cumsum())
+    pos_errors = np.take(marker_pos, switch_array[1:])
 
     for i, (start, stop) in enumerate(windows):
 
@@ -212,6 +187,7 @@ def calculate_switch_distances(windows, switch_array, marker_pos, rohz, gaps):
             marker_count[i] += (q - p - 1)
 
     return np.vstack([marker_dist, marker_count, error_count])
+
 
 def open_group(path):
     if path.endswith("h5"):
@@ -353,11 +329,11 @@ def main():
         sampleval_gt_subset = np.compress(hz, test_gt_subset[:, idx], axis=0)
         sample_gs = np.compress(hz, eval_gt_subset[:, idx], axis=0)
     
-        switch = determine_haplotype_switch(sample_gs, sampleval_gt_subset)
+        switch_locs = determine_haplotype_switch(sample_gs, sampleval_gt_subset)
     
         res[idx, :, :] = calculate_switch_distances(
             windows=scan_windows, 
-            switch_array=switch, 
+            switch_array=switch_locs, 
             marker_pos=marker_positions,
             rohz=roh[sid], 
             gaps=reference_gaps)
