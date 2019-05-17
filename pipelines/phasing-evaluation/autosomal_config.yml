@@ -1,6 +1,8 @@
 accessibility: /kwiat/vector/ag1000g/release/phase1.AR3/accessibility/accessibility.h5
 chromosomes: [2L, 2R, 3L, 3R]
 eval: /kwiat/2/coluzzi/ag1000g/data/analysis/20190514-tmp-dev-phasing/ag1000g.crosses.phase2.ar1.haplotypes.zip
-test: /kwiat/vector/ag1000g/release/phase2.AR1/haplotypes/main/hdf5/ag1000g.phase2.ar1.haplotypes.{chrom}.h5
+test: /kwiat/vector/ag1000g/release/phase2.AR1/haplotypes/main/zarr2/ag1000g.phase2.ar1.samples.zip
 fasta: /kwiat/vector/ag1000g/release/phase1.AR3/genome/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa
 roh: /kwiat/vector/ag1000g/analysis/20170914-phase2-roh/cross/output/runs_of_homozygosity.zip
+windowsize: 2000000
+overlap: 1000000

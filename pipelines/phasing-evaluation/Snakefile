@@ -15,8 +15,8 @@ rule evaluate:
         txt="evaluation/{chrom}/table_switch_errors.txt"
     params:
         req="h_vmem=4G",
-        overlap=250000,
-        windowsize=500000
+        overlap=config["overlap"],
+        windowsize=config["windowsize"]
     script:
         "../../scripts/evaluate_phasing_performance.py"
 
