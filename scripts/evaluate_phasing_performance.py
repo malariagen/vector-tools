@@ -318,6 +318,8 @@ def main():
     scan_windows = allel.stats.window.position_windows(pos=None, start=1,
         stop=contig_length, size=args["winsize"], step=args["overlap"])
     
+    # this holds the results
+    # nerrors, nmarkers and marker distance
     res = np.empty((len(sample_names), 3, scan_windows.shape[0]))
     
     for idx, sid in enumerate(sample_names):
@@ -340,6 +342,7 @@ def main():
     
     # now summarize across the samples dimension.
     sum_r = res.sum(axis=0)
+    np.savez_compressed(args["output"].replace("txt", "npz"), result=res, samples=np.array(sample_names))
     
     distance, n_markers, n_errors = sum_r
     n_markers = n_markers.astype("int")
