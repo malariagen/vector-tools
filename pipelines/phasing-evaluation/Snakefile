@@ -2,6 +2,7 @@
     
 rule all:
     input:
+        cfg="phasing_evaluation_config.yml"
         txt=expand("evaluation/{chrom}/table_switch_errors.txt", chrom=config["chromosomes"])
 
 rule evaluate:
@@ -20,12 +21,13 @@ rule evaluate:
     script:
         "../../scripts/evaluate_phasing_performance.py"
 
-#        "--eval {input.eval} "
-#        "--test {input.test} "
-#        "--fasta {input.fasta} "
-#        "--output {output.txt} "
-#        "--accessibility {input.access} "
-#        "-ws {params.windowsize} "
-#        "-wo {params.overlap} "
-#        "--chr {wildcards.chrom} "
-#        "--roh {input.roh}"
+
+rule write_config:
+  output:
+    cfg="phasing_evaluation_config.yml"
+  params:
+    req="h_vmem=2G"
+  run:
+    import yaml
+    with open(output.cfg, "w") as fh:
+      yaml.dump(config, fh)
