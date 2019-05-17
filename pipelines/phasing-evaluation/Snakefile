@@ -2,7 +2,7 @@
     
 rule all:
     input:
-        cfg="phasing_evaluation_config.yml"
+        cfg="phasing_evaluation_config.yml",
         txt=expand("evaluation/{chrom}/table_switch_errors.txt", chrom=config["chromosomes"])
 
 rule evaluate:
