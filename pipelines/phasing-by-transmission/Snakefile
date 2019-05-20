@@ -80,17 +80,27 @@ rule phase:
         # here we apply the mask
         # apply a mask to sites that fail to meet GQ filter.
         gq = allel.chunked.ChunkedArrayWrapper(callset["calldata/GQ"]).subset(sel0=loc, sel1=parent_indices)
-        genotypes_cross_pass[gq[:, 0] < params.mingq, 0] = (-1, -1)
-        genotypes_cross_pass[gq[:, 1] < params.mingq, 1] = (-1, -1)
+        mother_gq_ok = gq[:, 0] < params.mingq
+        father_gq_ok = gq[:, 1] < params.mingq
+        print("Masking {0} sites in mother where gq threshold is not reached".format(
+            np.sum(mother_gq_ok)))
+        print("Masking {0} sites in father where gq threshold is not reached".format(
+            np.sum(father_gq_ok)))
+        genotypes_cross_pass[mother_gq_ok, 0] = (-1, -1)
+        genotypes_cross_pass[father_gq_ok, 1] = (-1, -1)
 
         # apply a mask to sites that have mendel errors (and where one parent is a het)
         is_par_hetz = genotypes_cross_pass[:, :2].is_het().any(axis=1)
         any_me = allel.mendel_errors(genotypes_cross_pass[:, :2], genotypes_cross_pass[:, 2:]).sum(axis=1) > 0
+        print("Masking {0} sites where progeny contain mendelian errors".format(
+            np.sum(is_par_hetz & any_me)))
         genotypes_cross_pass[is_par_hetz & any_me, 0] = (-1, -1)
         genotypes_cross_pass[is_par_hetz & any_me, 1] = (-1, -1)
 
         # apply a mask to sites where progeny are non segregating (and where one parent is a het)
         is_prog_fixed = genotypes_cross_pass[:, 2:].count_alleles().is_non_segregating()
+        print("Masking {0} sites where progeny do not segregate given het parent".format(
+            np.sum(is_par_hetz & is_prog_fixed)))
         genotypes_cross_pass[is_par_hetz & is_prog_fixed, 0] = (-1, -1)
         genotypes_cross_pass[is_par_hetz & is_prog_fixed, 1] = (-1, -1)
 
