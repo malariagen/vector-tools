@@ -52,8 +52,6 @@ rule merge_zarr:
     num_workers=4,
     req="h_vmem=6G",
     pe="-pe simple_pe 4"
-  conda:
-    "env.yml"
   script:
     "../../scripts/combine_zarr.py"
 
