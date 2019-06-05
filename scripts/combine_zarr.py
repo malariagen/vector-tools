@@ -29,7 +29,7 @@ def main():
     parser.add_argument('--seqid', required=True,
                         help='name of chromosome or contig to process')
     parser.add_argument('--field', required=True,
-                        help='name of calldata field to extract, e.g., "GT"')
+                        help='name of field to extract, e.g., "calldata/GT". If the root not given e.g. "GT" defaults to "calldata/GT".')
     parser.add_argument('--chunk-width', required=False, default=50,
                         help='chunk width, defaults to 50')
     parser.add_argument('--cname', required=False, default='zstd',
@@ -67,6 +67,13 @@ def main():
 
     samples = load_samples(path=args["samples"])
     check_genotypes_files(samples=samples, input_pattern=args["input_pattern"])
+
+    # check field.
+    if len(args["field"].split("/")) == 1:
+        renamedfield = os.path.join("calldata", args["field"])
+        log("Assuming given field {0} refers to {1}".format(args["field"], renamedfield))
+        args["field"] = renamedfield
+
     arr = check_array_setup(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
                             field=args["field"])
     output_arr = setup_output(output_path=args["output"], seqid=args["seqid"], field=args["field"],
@@ -101,7 +108,7 @@ def check_array_setup(samples, input_pattern, seqid, field):
     path = input_pattern.format(sample=samples[0])
     callset = zarr.group(zarr.ZipStore(path, mode='r'))
     # expect sample name in hierarchy
-    array = callset[samples[0]][seqid]['calldata'][field]
+    array = callset[samples[0]][seqid][field]
     n_variants = array.shape[0]
     log('Found {:,} variants.'.format(n_variants))
     return array
@@ -112,13 +119,14 @@ def setup_output(output_path, seqid, field, example_arr, samples, cname, clevel,
     log('Setting up output at {!r} ...'.format(output_path))
     callset = zarr.open_group(output_path, mode='a')
     seq_group = callset.require_group(seqid)
-    calldata_group = seq_group.require_group('calldata')
+    field_root, field_id = field.split("/")
+    root_group = seq_group.require_group(field_root)
     output_shape = (example_arr.shape[0], len(samples)) + example_arr.shape[2:]
     output_chunks = (example_arr.chunks[0], chunk_width) + example_arr.chunks[2:]
     compressor = numcodecs.Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
-    output_arr = calldata_group.empty_like(field, example_arr, shape=output_shape,
-                                           chunks=output_chunks, overwrite=True,
-                                           compressor=compressor)
+    output_arr = root_group.empty_like(
+      field_id, example_arr, shape=output_shape, 
+      chunks=output_chunks, overwrite=True, compressor=compressor)
     log('Created output array: ' + repr(output_arr))
     return output_arr
 
@@ -128,8 +136,12 @@ def setup_input(samples, input_pattern, seqid, field):
     input_paths = [input_pattern.format(sample=s) for s in samples]
     input_stores = [zarr.ZipStore(ip, mode='r') for ip in input_paths]
     input_roots = [zarr.group(store) for store in input_stores]
-    input_arrays = [root[s][seqid]['calldata'][field] for root, s in zip(input_roots, samples)]
+    input_arrays = [root[s][seqid][field] for root, s in zip(input_roots, samples)]
     input_arrays = [da.from_array(a, chunks=a.chunks) for a in input_arrays]
+
+    # here we add a dim to allow the hstack to work. must share the shape (X, 1, )
+    input_arrays = [a.reshape((-1, 1)) if a.ndim < 2 else a for a in input_arrays]
+
     input_array = da.hstack(input_arrays)
     log('Input array:', input_array)
     return input_array
