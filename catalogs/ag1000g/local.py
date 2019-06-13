@@ -41,12 +41,12 @@ class Phase2AR1(object):
         return zarr.open_consolidated(str(path))
 
     @cached_property
-    def variation_main_pass():
+    def variation_main_pass(self):
         path = self.base_dir / 'variation/main/zarr/pass/ag1000g.phase2.ar1.pass'
         return zarr.open_consolidated(str(path))
 
     @cached_property
-    def variation_main_pass_biallelic():
+    def variation_main_pass_biallelic(self):
         path = self.base_dir / 'variation/main/zarr/biallelic/ag1000g.phase2.ar1.pass.biallelic'
         return zarr.open_consolidated(str(path))
 
