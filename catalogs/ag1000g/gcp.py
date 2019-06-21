@@ -14,24 +14,24 @@ PHASE2_AR1_DIR = AG1000G_RELEASE_DIR / 'phase2.AR1'
 class Phase1AR3(object):
 
     def __init__(self):
-        self.fs = gcsfs.GCSFileSystem(project=GCS_PROJECT, token='anon',
+        self.fs = gcsfs.GCSFileSystem(project=GCP_PROJECT, token='anon',
                                       access='read_only')
 
     @cached_property
     def variation_main(self):
-        path = AG1000G_RELEASE_DIR / 'variation/main/zarr/ag1000g.phase1.ar3'
+        path = PHASE1_AR3_DIR / 'variation/main/zarr/ag1000g.phase1.ar3'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
     @cached_property
     def variation_main_pass(self):
-        path = AG1000G_RELEASE_DIR / 'variation/main/zarr/ag1000g.phase1.ar3.pass'
+        path = PHASE1_AR3_DIR / 'variation/main/zarr/ag1000g.phase1.ar3.pass'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
     @cached_property
     def variation_main_pass_biallelic(self):
-        path = AG1000G_RELEASE_DIR / 'variation/main/zarr/ag1000g.phase1.ar3.pass.biallelic'
+        path = PHASE1_AR3_DIR / 'variation/main/zarr/ag1000g.phase1.ar3.pass.biallelic'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
@@ -39,12 +39,12 @@ class Phase1AR3(object):
 class Phase1AR31(object):
 
     def __init__(self):
-        self.fs = gcsfs.GCSFileSystem(project=GCS_PROJECT, token='anon',
+        self.fs = gcsfs.GCSFileSystem(project=GCP_PROJECT, token='anon',
                                       access='read_only')
 
     @cached_property
     def haplotypes_main(self):
-        path = AG1000G_RELEASE_DIR / 'haplotypes/main/zarr/ag1000g.phase1.ar3.1.haplotypes'
+        path = PHASE1_AR31_DIR / 'haplotypes/main/zarr/ag1000g.phase1.ar3.1.haplotypes'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
@@ -52,29 +52,29 @@ class Phase1AR31(object):
 class Phase2AR1(object):
 
     def __init__(self):
-        self.fs = gcsfs.GCSFileSystem(project=GCS_PROJECT, token='anon',
+        self.fs = gcsfs.GCSFileSystem(project=GCP_PROJECT, token='anon',
                                       access='read_only')
 
     @cached_property
     def variation_main(self):
-        path = AG1000G_RELEASE_DIR / 'variation/main/zarr/all/ag1000g.phase2.ar1'
+        path = PHASE2_AR1_DIR / 'variation/main/zarr/all/ag1000g.phase2.ar1'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
     @cached_property
     def variation_main_pass(self):
-        path = AG1000G_RELEASE_DIR / 'variation/main/zarr/pass/ag1000g.phase2.ar1.pass'
+        path = PHASE2_AR1_DIR / 'variation/main/zarr/pass/ag1000g.phase2.ar1.pass'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
     @cached_property
     def variation_main_pass_biallelic(self):
-        path = AG1000G_RELEASE_DIR / 'variation/main/zarr/biallelic/ag1000g.phase2.ar1.pass.biallelic'
+        path = PHASE2_AR1_DIR / 'variation/main/zarr/biallelic/ag1000g.phase2.ar1.pass.biallelic'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
 
     @cached_property
     def haplotypes_main(self):
-        path = AG1000G_RELEASE_DIR / 'haplotypes/main/zarr/ag1000g.phase2.ar1.haplotypes'
+        path = PHASE2_AR1_DIR / 'haplotypes/main/zarr/ag1000g.phase2.ar1.haplotypes'
         store = gcsfs.GCSMap(str(path), gcs=self.fs, check=False, create=False)
         return zarr.open_consolidated(store)
