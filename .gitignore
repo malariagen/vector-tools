@@ -105,3 +105,7 @@ venv.bak/
 
 # MacOS Finder
 .DS_Store
+
+# emacs
+*~
+
