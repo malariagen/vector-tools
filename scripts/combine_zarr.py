@@ -140,7 +140,7 @@ def setup_input(samples, input_pattern, seqid, field):
     input_arrays = [da.from_array(a, chunks=a.chunks) for a in input_arrays]
 
     # here we add a dim to allow the hstack to work. must share the shape (X, 1, )
-    input_arrays = [a.reshape((-1, 1)) if a.ndim < 2 else a for a in input_arrays]
+    input_arrays = [a[:, None] if a.ndim == 1 else a for a in input_arrays]
 
     input_array = da.hstack(input_arrays)
     log('Input array:', input_array)
