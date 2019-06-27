@@ -50,7 +50,7 @@ rule merge_zarr:
     chunk_width=config["chunk_width"],
     shuffle=0,
     num_workers=4,
-    req="h_vmem=6G",
+    req="h_vmem=12G",
     pe="-pe simple_pe 4"
   script:
     "../../scripts/combine_zarr.py"
