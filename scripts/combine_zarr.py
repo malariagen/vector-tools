@@ -7,6 +7,7 @@ import numcodecs
 import dask
 import dask.array as da
 from dask.diagnostics import ProgressBar
+import numpy as np
 
 
 def log(*msg):
@@ -125,7 +126,7 @@ def setup_output(output_path, seqid, field, example_arr, samples, cname, clevel,
 
     c1 = 2 **26 // np.prod((chunk_width,) + example_arr.shape[2:])
     output_chunks = (c1, chunk_width) + example_arr.chunks[2:]
-    log(output_chunks)
+
     compressor = numcodecs.Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
     output_arr = root_group.empty_like(
       field_id, example_arr, shape=output_shape, 
