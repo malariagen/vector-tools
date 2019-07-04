@@ -1,0 +1,350 @@
+import re
+import numpy as np
+import pandas as pd
+import h5py
+import allel
+import zarr
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+meta = pd.read_csv(config["metadata"], sep="\t")
+cross_ids = meta.cross.unique()
+
+rule all:
+    input:
+        config="phasing_transmission_config.yml",
+        table="mendel_errors.txt",
+        zipped="ag1000g.crosses.phase2.ar1.haplotypes.zip",
+        plots=expand("images/{chrom}/{cross}_maternal_painting.png", chrom=config["chromosomes"], cross=cross_ids)
+
+rule all_text:
+    input:
+        expand("shapeit/ag1000g.phase2.ar1.haplotypes.{chrom}.gz", chrom=config["chromosomes"]),
+        expand("shapeit/ag1000g.phase2.ar1.samples.{chrom}.gz", chrom=config["chromosomes"])
+
+rule make_plots:
+    input:
+        plots=expand("images/{chrom}/{cross}_maternal_painting.png", chrom=config["chromosomes"], cross=cross_ids)
+
+# Run for each cross/chrom
+rule phase:
+    input:
+        genotypes=config["genotypes"],
+        metadata=config["metadata"]
+    output:
+        zarr=directory("{chrom}/{cross}.zarr2"),
+        mark=touch("{chrom}/{cross}.zarr2.ok")
+    params:
+        req="h_vmem=8G",
+        mingq=config["mingq"],
+        window_size=config["phasing_window_size"]
+    run:
+
+        callset = h5py.File(input.genotypes, "r")[wildcards.chrom] 
+        genotypes = allel.GenotypeChunkedArray(callset["calldata/genotype"])
+        samples = [s.decode() for s in callset["samples"]]
+
+        meta = pd.read_csv(input.metadata, sep="\t")
+        parents_df = meta[(meta.cross == wildcards.cross) & (meta.role == 'parent')].sort_values("sex")
+
+        assert len(parents_df) == 2, "Exactly 2 parents required"
+        assert np.array_equal(parents_df.sex.values, ("F", "M")), "Expected one male on one female parent"
+
+        parents = parents_df.ox_code.tolist()
+        parent_indices = [samples.index(s) for s in parents]
+
+        progeny = meta[(meta.cross == wildcards.cross) & (meta.role == 'progeny')].ox_code.tolist()
+        progeny_indices = [samples.index(s) for s in progeny]
+        assert len(progeny_indices) > 0, "At least one progeny must be selected"
+
+        sample_indices = parent_indices + progeny_indices
+
+        # NOTE this is a difference from Alistair's method. We keep sites that segregate in any cross.
+        # this means it is easy to re-merge crosses. biallelic and pass are done on all sites
+        ac = genotypes.count_alleles(max_allele=3)[:]
+
+        loc_seg = ac.is_segregating()
+        loc_bial = ac.max_allele() < 2
+
+        loc_pass = callset['variants/FILTER_PASS'][:]
+        loc = loc_seg & loc_pass & loc_bial
+
+        positions = allel.SortedIndex(callset["variants/POS"]).compress(loc, axis=0)
+        alternate = np.compress(loc, callset["variants/ALT"][:], axis=0)[:, 0]
+        reference = np.compress(loc, callset["variants/REF"][:])
+
+        genotypes_cross_pass = genotypes.subset(loc, sample_indices)[:]
+
+        # here we apply the mask
+        # apply a mask to sites that fail to meet GQ filter.
+        gq = allel.chunked.ChunkedArrayWrapper(callset["calldata/GQ"]).subset(sel0=loc, sel1=parent_indices)
+        mother_gq_ok = gq[:, 0] < params.mingq
+        father_gq_ok = gq[:, 1] < params.mingq
+        print("Masking {0} sites in mother where gq threshold is not reached".format(
+            np.sum(mother_gq_ok)))
+        print("Masking {0} sites in father where gq threshold is not reached".format(
+            np.sum(father_gq_ok)))
+        genotypes_cross_pass[mother_gq_ok, 0] = (-1, -1)
+        genotypes_cross_pass[father_gq_ok, 1] = (-1, -1)
+
+        # apply a mask to sites that have mendel errors (and where one parent is a het)
+        is_par_hetz = genotypes_cross_pass[:, :2].is_het().any(axis=1)
+        any_me = allel.mendel_errors(genotypes_cross_pass[:, :2], genotypes_cross_pass[:, 2:]).sum(axis=1) > 0
+        print("Masking {0} sites where progeny contain mendelian errors".format(
+            np.sum(is_par_hetz & any_me)))
+        genotypes_cross_pass[is_par_hetz & any_me, 0] = (-1, -1)
+        genotypes_cross_pass[is_par_hetz & any_me, 1] = (-1, -1)
+
+        # apply a mask to sites where progeny are non segregating (and where one parent is a het)
+        is_prog_fixed = genotypes_cross_pass[:, 2:].count_alleles().is_non_segregating()
+        print("Masking {0} sites where progeny do not segregate given het parent".format(
+            np.sum(is_par_hetz & is_prog_fixed)))
+        genotypes_cross_pass[is_par_hetz & is_prog_fixed, 0] = (-1, -1)
+        genotypes_cross_pass[is_par_hetz & is_prog_fixed, 1] = (-1, -1)
+
+        phased_genotypes = allel.phase_by_transmission(genotypes_cross_pass, window_size=params.window_size)
+        is_phased = np.all(phased_genotypes.is_phased, axis=1)
+
+        mendel_errors = allel.mendel_errors(phased_genotypes[:, :2], phased_genotypes[:, 2:])
+
+        root = zarr.open_group(output.zarr, "w")
+        root.create_dataset("samples", data=np.array(parents + progeny, dtype="<U8"))
+        root.create_dataset("mendelian_error", data=mendel_errors)
+        root.create_dataset("is_phased", data=is_phased)
+        root.create_dataset("POS", data=positions)
+        root.create_dataset("REF", data=reference)
+        root.create_dataset("ALT", data=alternate)
+        root.create_dataset("phased_genotypes", data=phased_genotypes)
+
+rule mendelian_error_report:
+    output:
+        table="mendel_errors.txt"
+    input:
+        zarr=expand("{chrom}/{cross}.zarr2", chrom=config["chromosomes"], cross=cross_ids),
+        metadata=config["metadata"]
+    params:
+        req="h_vmem=6G",
+    run:
+        meta = pd.read_csv(input.metadata, sep="\t")
+        
+        from itertools import product
+        wc = tuple(product(config["chromosomes"], cross_ids))
+        mi = pd.MultiIndex.from_tuples(wc, names=["chromsome", "cross_id"])
+        df = pd.DataFrame(index=mi, columns=["n_called_sites", "n_any_errors", "min_errors", "max_errors", "rate",
+            "n_biallelic_sites", "biallelic_n_any_errors", "biallelic_rate"])
+
+        for fn in input.zarr:
+
+            matchObj = re.match( r'(.+)/(.+)\.zarr2', fn)
+            _chrom, _cross = matchObj.group(1), matchObj.group(2)
+
+            root = zarr.open_group(fn, "r")
+
+            mendelian_error = root["mendelian_error"][:]
+            phased_genotypes = allel.GenotypeChunkedArray(root["phased_genotypes"])
+            
+            ac = phased_genotypes.count_alleles()
+
+            # we exclude missing sites in parents and non segregating sites
+            loc_seg = ac.is_segregating()[:]
+            loc_bial = (ac.max_allele() < 2)[:]
+
+            par_gt = allel.GenotypeArray(phased_genotypes[:, :2])
+            loc_called = par_gt.is_called().all(axis=1)[:]
+
+            n_calls = np.sum(loc_called & loc_seg)
+            n_bial_calls = np.sum(loc_called & loc_bial & loc_seg)
+
+            me = np.compress(loc_called & loc_seg, mendelian_error, axis=0)
+            any_e = np.sum(np.any(me, axis=1))
+
+            per_sample = np.sum(me, axis=0)
+
+            bial_me = np.compress(loc_called & loc_seg & loc_bial, mendelian_error, axis=0)
+            bial_any_e = np.sum(np.any(bial_me, axis=1))
+
+            df.loc[_chrom, _cross] = (n_calls, any_e, per_sample.min(), per_sample.max(), any_e/n_calls, 
+                n_bial_calls, bial_any_e, bial_any_e/n_bial_calls)
+
+        df.reset_index().to_csv(output.table, sep="\t") 
+
+
+# combine all the phased data into a single zarr file for release.
+rule combine_phased_data:
+    output:
+        zarr=directory("ag1000g.crosses.phase2.ar1.haplotypes.zarr2"),
+        mark=touch("ag1000g.crosses.phase2.ar1.haplotypes.zarr2.ok")
+    input:
+        zarr=expand("{chrom}/{cross}.zarr2", chrom=config["chromosomes"], cross=cross_ids),
+        metadata=config["metadata"]
+    params:
+        req="h_vmem=6G"
+    run:
+        from itertools import product
+        root = zarr.open_group(output.zarr, mode="w")
+        meta = pd.read_csv(input.metadata, sep="\t")
+
+        filenames = {}
+        for fn in input.zarr:
+            matchObj = re.match( r'(.+)/(.+)\.zarr2', fn)
+            _chrom, _cross = matchObj.group(1), matchObj.group(2)
+            filenames[_chrom, _cross] = fn
+            
+        # this is the output order of samples...
+        sample_names = np.array(meta.ox_code.values, dtype="<U8")
+        sample_names_list = sample_names.tolist()
+
+        for _chrom in config["chromosomes"]:
+
+            cgroup = root.create_group(_chrom)
+            variants = cgroup.create_group("variants")
+            calldata = cgroup.create_group("calldata")
+            samples = cgroup.create_dataset("samples", data=sample_names)
+             
+            # now fill
+            for _cross in cross_ids:
+
+                # open handle
+                fh = zarr.open_group(filenames[_chrom, _cross], "r")
+
+                # grab genotypes
+                gt = fh["phased_genotypes"]
+
+                # put in array (not created yet!)
+                gt_z = calldata.require_dataset("genotype", shape=(gt.shape[0], sample_names.size, 2), chunks=(100000, 1, 2), dtype="int8")
+               
+                # find indices
+                # NOTE : Much more efficient to concatenate, then sort at end.
+                for ii, sid in enumerate(fh["samples"]):
+                    ix = sample_names_list.index(sid)
+                    gt_z[:, ix] = gt[:, ii]
+
+                # grab pos
+                pos = fh["POS"]
+
+                # put in array or check is correct.
+                if "POS" in variants:
+                    assert np.array_equal(pos, variants["POS"]), "POS does not match"
+                else:
+                    variants.create_dataset("POS", data=pos)
+
+                if "REF" not in variants:
+                    variants.create_dataset("REF", data=fh["REF"])
+                    variants.create_dataset("ALT", data=fh["ALT"])
+
+
+rule zipzarr:
+    input:
+        rules.combine_phased_data.output.zarr
+    params:
+        req="h_vmem=6G"
+    output:
+        zipped="ag1000g.crosses.phase2.ar1.haplotypes.zip"
+    shell:
+        "cd {input} && zip -rm0 ../ag1000g.crosses.phase2.ar1.haplotypes.zip .; cd -;"
+        "rm -r {input}"
+
+
+# create a text output so that we have another file type.
+rule zarr_to_haplotypes_txt:
+    input:
+        zarr=rules.zipzarr.output.zipped
+    output:
+        txt="shapeit/ag1000g.phase2.ar1.haplotypes.{chrom}.gz"
+    params:
+        req="h_vmem=8G"
+    script:
+        "../../scripts/zarr2haptxt.py"
+
+rule zarr_to_samples_txt:
+    input:
+        zarr=rules.zipzarr.output.zipped
+    output:
+        txt="shapeit/ag1000g.phase2.ar1.samples.{chrom}.gz"
+    params:
+        req="h_vmem=8G"
+    script:
+        "../../scripts/zarr2samtxt.py"
+
+def plot_transmission(painting, ax=None, title=None, palette_name='colorblind'):
+    
+    palette = sns.color_palette(palette_name)
+   
+    # set figure height depending on number of haplotypes
+    
+    # map painting codes onto colours
+    cmap = mpl.colors.ListedColormap([
+        'grey',      # 0 = undetermined
+        palette[0],  # 1 = allele inherited from first parental haplotype
+        palette[2],  # 2 = allele inherited from second parental haplotype
+        palette[1],  # 3 = reference allele, also carried by both parental haplotypes
+        palette[3],  # 4 = non-reference allele, also carried by both parental haplotypes
+        'black',     # 5 = non-parental allele (i.e., Mendelian error)
+        palette[5],  # 6 = either or both parental alleles missing
+        'white',     # 7 = missing allele
+    ])
+    
+    # plot painting
+    ax.pcolormesh(painting.T, cmap=cmap, vmin=0, vmax=7)
+    
+    # tidy up axes
+    ax.set_yticks(np.arange(painting.shape[1]) + .5)
+    ax.set_yticklabels(range(painting.shape[1]))
+    ax.set_ylabel('Progeny haplotypes')
+    ax.set_xlabel('Variants')
+    if title:
+        ax.set_title(title)
+
+rule paint_transmission:
+    output:
+        mother=["images/{chrom}/{cross}_maternal_painting.png", "images/{chrom}/{cross}_maternal_painting_hets.png"],
+        father=["images/{chrom}/{cross}_paternal_painting.png", "images/{chrom}/{cross}_paternal_painting_hets.png"]
+    input:
+        zarr="{chrom}/{cross}.zarr2"
+    params:
+        req="h_vmem=4G"
+    run:
+        root = zarr.open_group(input.zarr, "r")
+
+        mendelian_error = root["mendelian_error"][:]
+        phased_genotypes = allel.GenotypeChunkedArray(root["phased_genotypes"])
+        
+        desc = {"mother": "Maternal", "father": "Paternal"}
+        for ix, parent_label in enumerate(["mother", "father"]): 
+
+            # pull out mother's genotypes from the first column
+            genotypes_mother = phased_genotypes[:, ix]
+            # convert to haplotype array
+            haplotypes_mother = genotypes_mother.to_haplotypes()
+            # pull out maternal haplotypes from the progeny
+            haplotypes_progeny_maternal = allel.HaplotypeArray(phased_genotypes[:, 2:, ix])
+            # stack mother's haplotypes alongside haplotypes she transmitted to her progeny
+            haplotypes_maternal = haplotypes_mother.concatenate(haplotypes_progeny_maternal, axis=1)
+            # pull out maternal haplotypes from the progeny
+            haplotypes_progeny_maternal = allel.HaplotypeArray(phased_genotypes[:, 2:, ix])
+            # stack mother's haplotypes alongside haplotypes she transmitted to her progeny
+            haplotypes_maternal = haplotypes_mother.concatenate(haplotypes_progeny_maternal, axis=1)
+            
+            painting_maternal = allel.paint_transmission(haplotypes_mother, haplotypes_progeny_maternal)
+    
+            fig, ax = plt.subplots(figsize=(12, .2 * painting_maternal.shape[1]))
+            plot_transmission(painting_maternal[::5], 
+                ax=ax, title='{0} haplotypes'.format(desc[parent_label]))
+            fig.savefig(output[parent_label][0], dpi=400, bbox_inches="tight")
+    
+            fig, ax = plt.subplots(figsize=(12, .2 * painting_maternal.shape[1]))
+            plot_transmission(painting_maternal[genotypes_mother.is_het()][::5],
+                ax=ax, title='{0} haplotypes (sites heterozygous in {1})'.format(desc[parent_label], parent_label))
+            fig.savefig(output[parent_label][1], dpi=400, bbox_inches="tight")
+    
+rule write_config:
+  output:
+    cfg="phasing_transmission_config.yml"
+  params:
+    req="h_vmem=2G"
+  run:
+    import yaml
+    with open(output.cfg, "w") as fh:
+      yaml.dump(config, fh)

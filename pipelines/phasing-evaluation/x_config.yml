@@ -1,0 +1,8 @@
+accessibility: /kwiat/vector/ag1000g/release/phase1.AR3/accessibility/accessibility.h5
+chromosomes: [X]
+eval: /kwiat/1/anopheles/ag1000g/data/analysis/20170316-phase2-haplotypes/synthetic_x/output/_build/ag1000g.syntheticX.X.h5
+test: /kwiat/vector/ag1000g/release/phase2.AR1/haplotypes/main/zarr2/ag1000g.phase2.ar1.samples.X.zip
+fasta: /kwiat/vector/ag1000g/release/phase1.AR3/genome/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa
+roh: /kwiat/vector/ag1000g/analysis/20170914-phase2-roh/cross/output/runs_of_homozygosity.zip
+windowsize: 2000000
+overlap: 1000000

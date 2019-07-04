@@ -1,0 +1,33 @@
+# Snakemake pipeline to create a 
+    
+rule all:
+    input:
+        cfg="phasing_evaluation_config.yml",
+        txt=expand("evaluation/{chrom}/table_switch_errors.txt", chrom=config["chromosomes"])
+
+rule evaluate:
+    input:
+        test=config["test"],
+        eval=config["eval"],
+        fasta=config["fasta"],
+        access=config["accessibility"],
+        roh=config["roh"]
+    output:
+        txt="evaluation/{chrom}/table_switch_errors.txt"
+    params:
+        req="h_vmem=4G",
+        overlap=config["overlap"],
+        windowsize=config["windowsize"]
+    script:
+        "../../scripts/evaluate_phasing_performance.py"
+
+
+rule write_config:
+  output:
+    cfg="phasing_evaluation_config.yml"
+  params:
+    req="h_vmem=2G"
+  run:
+    import yaml
+    with open(output.cfg, "w") as fh:
+      yaml.dump(config, fh)
