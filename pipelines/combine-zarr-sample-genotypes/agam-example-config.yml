@@ -1,4 +1,5 @@
 data_dir: /kwiat/vector/mirror/observatory/vo_agam/genotype_zarrs
+samplesets_output_dir: /kwiat/vector/observatory/production/vo_agam/combined_samplesets
 fasta_path: /kwiat/1/anopheles/ag1000g/data/1000g_12_09/release/AR1/genome/agamP3/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa
 sites_path: /kwiat/vector/observatory/resources/agam/ag.allsites.nonN.zarr.zip
 gt_suffix: '.genotypes.zarr.zip'
