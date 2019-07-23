@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import pyfaidx
 
+samplesets_output_dir = config["samplesets_output_dir"]
+
 fa = pyfaidx.Fasta(config["fasta_path"])
 contigs = list(fa.keys())
 
