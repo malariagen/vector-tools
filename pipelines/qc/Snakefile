@@ -30,7 +30,7 @@ rule generate_report:
     cfg="{samplesets_output_dir}/{sampleset}/qc_config.yml",
     fofn=fofn_path
   params:
-    path=lambda y: os.path.join(y.sampleset, "{sample}"),
+    path=lambda y: os.path.join(samplesets_output_dir, y.sampleset, "{sample}"),
     req="h_vmem=6G"
   output:
     csv="{samplesets_output_dir}/{sampleset}/qc_summary.tsv"
