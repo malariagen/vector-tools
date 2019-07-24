@@ -53,7 +53,7 @@ rule estimate_contamination:
     sites=config["genotyped_sites"],
     allele_frequencies=config["allele_frequencies"]
   output:
-    txt=os.path.join(config["samplesets_output_dir"], sampleset}, "{sample}.contamination.csv")
+    txt=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.contamination.csv")
   params:
     stem=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}"),
     seqid=config["seqid_contam"],
