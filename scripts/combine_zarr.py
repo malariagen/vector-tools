@@ -75,9 +75,9 @@ def main():
         log("Assuming given field {0} refers to {1}".format(args["field"], renamedfield))
         args["field"] = renamedfield
 
-    arr = check_array_setup(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+    arr, field_path = check_array_setup(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
                             field=args["field"])
-    output_arr, field_path = setup_output(output_path=args["output"], seqid=args["seqid"], field=args["field"],
+    output_arr = setup_output(output_path=args["output"], seqid=args["seqid"], field=field_path,
                                           example_arr=arr, samples=samples, cname=args["cname"],
                                           clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
     input_arr = setup_input(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
