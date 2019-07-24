@@ -58,10 +58,10 @@ rule merge_zarr:
 
 rule compute_allele_freqs:
   output:
-    zarr=directory(os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF"),
-    done=touch(os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF.complete"),
+    zarr=directory(os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF")),
+    done=touch(os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF.complete")),
   input:
-    zarr=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/GT",
+    zarr=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/GT"),
     sites=config["sites_path"]
   params:
     outz=lambda y: os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr"),
