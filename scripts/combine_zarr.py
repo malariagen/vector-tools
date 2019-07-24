@@ -75,13 +75,19 @@ def main():
         log("Assuming given field {0} refers to {1}".format(args["field"], renamedfield))
         args["field"] = renamedfield
 
-    arr, field_path = check_array_setup(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
-                            field=args["field"])
-    output_arr = setup_output(output_path=args["output"], seqid=args["seqid"], field=field_path,
-                                          example_arr=arr, samples=samples, cname=args["cname"],
-                                          clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
-    input_arr = setup_input(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
-                            field=field_path)
+    arr, field_path = check_array_setup(
+        samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+        field=args["field"])
+
+    output_arr = setup_output(
+        output_path=args["output"], seqid=args["seqid"], field=args["field"],
+        example_arr=arr, samples=samples, cname=args["cname"],
+        clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
+
+    input_arr = setup_input(
+        samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+        field=field_path)
+
     copy_data(input_arr=input_arr, output_arr=output_arr, num_workers=args["num_workers"])
     log('All done.')
 
