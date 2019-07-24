@@ -17,7 +17,7 @@ if "contigs" not in config:
 rule all_merge:
   input:
     expand(
-      os.path.join(config["samplesets_output_dir"] + "/{{sampleset}}/callset.zarr/{chrom}/calldata/{field}"),
+      os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/{field}"),
       field=config["fields"],
       chrom=config["contigs"]
     ),
@@ -28,7 +28,7 @@ rule all_merge:
 rule all_freqs:
   input:
     expand(
-      os.path.join(config["samplesets_output_dir"] + "/{{sampleset}}/allele_frequencies.zarr/{chrom}/AF"),
+      os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF"),
       chrom=config["contigs"]
     ),
     os.path.join(sampleset, "merge_genotypes_config.yml")
