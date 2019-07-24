@@ -109,7 +109,14 @@ def check_array_setup(samples, input_pattern, seqid, field):
     path = input_pattern.format(sample=samples[0])
     callset = zarr.group(zarr.ZipStore(path, mode='r'))
     # expect sample name in hierarchy
-    array = callset[samples[0]][seqid][field]
+
+    try:
+        array = callset[samples[0]][seqid][field]
+    except KeyError:
+        field = field.replace("calldata/", "variants/")
+        array = callset[samples[0]][seqid][field]
+        log("{field} found in `variants` not `calldata`")
+
     n_variants = array.shape[0]
     log('Found {:,} variants.'.format(n_variants))
     return array
