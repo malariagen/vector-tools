@@ -33,6 +33,7 @@ rule all_freqs:
     ),
     os.path.join(sampleset, "merge_genotypes_config.yml")
 
+
 rule merge_zarr:
   input:
     manifest=os.path.join(config["samplesets_output_dir"], sampleset, "manifest")
