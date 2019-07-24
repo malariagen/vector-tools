@@ -75,13 +75,19 @@ def main():
         log("Assuming given field {0} refers to {1}".format(args["field"], renamedfield))
         args["field"] = renamedfield
 
-    arr = check_array_setup(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
-                            field=args["field"])
-    output_arr = setup_output(output_path=args["output"], seqid=args["seqid"], field=args["field"],
-                              example_arr=arr, samples=samples, cname=args["cname"],
-                              clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
-    input_arr = setup_input(samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
-                            field=args["field"])
+    arr, field_path = check_array_setup(
+        samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+        field=args["field"])
+
+    output_arr = setup_output(
+        output_path=args["output"], seqid=args["seqid"], field=args["field"],
+        example_arr=arr, samples=samples, cname=args["cname"],
+        clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
+
+    input_arr = setup_input(
+        samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
+        field=field_path)
+
     copy_data(input_arr=input_arr, output_arr=output_arr, num_workers=args["num_workers"])
     log('All done.')
 
@@ -109,10 +115,17 @@ def check_array_setup(samples, input_pattern, seqid, field):
     path = input_pattern.format(sample=samples[0])
     callset = zarr.group(zarr.ZipStore(path, mode='r'))
     # expect sample name in hierarchy
-    array = callset[samples[0]][seqid][field]
+
+    try:
+        array = callset[samples[0]][seqid][field]
+    except KeyError:
+        field = field.replace("calldata/", "variants/")
+        array = callset[samples[0]][seqid][field]
+        log("{field} found in `variants` not `calldata`".format(field=field))
+
     n_variants = array.shape[0]
     log('Found {:,} variants.'.format(n_variants))
-    return array
+    return array, field
 
 
 def setup_output(output_path, seqid, field, example_arr, samples, cname, clevel, shuffle,
