@@ -2,8 +2,6 @@ import pandas as pd
 import os
 import pyfaidx
 
-samplesets_output_dir = config["samplesets_output_dir"]
-
 fa = pyfaidx.Fasta(config["fasta_path"])
 contigs = list(fa.keys())
 
@@ -20,11 +18,11 @@ rule all_merge:
   input:
     expand(
       os.path.join("{samplesets_output_dir}/{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
-      samplesets_output_dir=[samplesets_output_dir],
+      samplesets_output_dir=[config["samplesets_output_dir"]],
       sampleset=[sampleset],
       field=config["fields"],
       chrom=config["contigs"]),
-    os.path.join(samplesets_output_dir, sampleset, "merge_genotypes_config.yml")
+    os.path.join(config["samplesets_output_dir"], sampleset, "merge_genotypes_config.yml")
 
 
 # NH: This is an input to the contamination pipeline. We didn't use this for phase 3 because we had the phase 2 dataset available, which was curated
@@ -32,21 +30,21 @@ rule all_freqs:
   input:
     expand(
       os.path.join("{samplesets_output_dir}/{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-      samplesets_output_dir=[samplesets_output_dir],
+      samplesets_output_dir=[config["samplesets_output_dir"]],
       chrom=config["contigs"],
       sampleset=[sampleset]),
     os.path.join(sampleset, "merge_genotypes_config.yml")
 
 rule merge_zarr:
   input:
-    manifest="{samplesets_output_dir}/{sampleset}/manifest"
+    manifest=config["samplesets_output_dir"] + "/{sampleset}/manifest"
   output:
-    zarr=directory("{samplesets_output_dir}/{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
-    done=touch("{samplesets_output_dir}/{sampleset}/callset.zarr/{chrom}/calldata/{field}.complete")
+    zarr=directory(config["samplesets_output_dir"] + "/{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
+    done=touch(config["samplesets_output_dir"] + "/{sampleset}/callset.zarr/{chrom}/calldata/{field}.complete")
   params:
-    samples=lambda y: os.path.join(samplesets_output_dir, y.sampleset, "manifest"),
-    input_pattern=lambda y: os.path.join(samplesets_output_dir, config["data_dir"], "{sample}" + config["gt_suffix"]),
-    output=lambda y: os.path.join(samplesets_output_dir, y.sampleset, "callset.zarr"),
+    samples=lambda y: os.path.join(config["samplesets_output_dir"], y.sampleset, "manifest"),
+    input_pattern=lambda y: os.path.join(config["samplesets_output_dir"], config["data_dir"], "{sample}" + config["gt_suffix"]),
+    output=lambda y: os.path.join(config["samplesets_output_dir"], y.sampleset, "callset.zarr"),
     seqid=lambda y: y.chrom,
     field=lambda y: y.field,
     cname="zstd",
@@ -62,14 +60,14 @@ rule merge_zarr:
 
 rule compute_allele_freqs:
   output:
-    zarr=directory("{samplesets_output_dir}/{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-    done=touch("{samplesets_output_dir}/{sampleset}/allele_frequencies.zarr/{chrom}/AF.complete"),
+    zarr=directory(config["samplesets_output_dir"] + "/{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
+    done=touch(config["samplesets_output_dir"] + "/{sampleset}/allele_frequencies.zarr/{chrom}/AF.complete"),
   input:
-    zarr="{samplesets_output_dir}/{sampleset}/callset.zarr/{chrom}/calldata/GT",
+    zarr=config["samplesets_output_dir"] + "/{sampleset}/callset.zarr/{chrom}/calldata/GT",
     sites=config["sites_path"]
   params:
-    outz=lambda y: os.path.join(samplesets_output_dir, y.sampleset, "allele_frequencies.zarr"),
-    inz=lambda y: os.path.join(samplesets_output_dir, y.sampleset, "callset.zarr"),
+    outz=lambda y: os.path.join(config["samplesets_output_dir"], y.sampleset, "allele_frequencies.zarr"),
+    inz=lambda y: os.path.join(config["samplesets_output_dir"], y.sampleset, "callset.zarr"),
     req="h_vmem=10G",
     pe=""
   run:
@@ -111,7 +109,7 @@ rule compute_allele_freqs:
 
 rule dump_manifest:
   output:
-    txt="{samplesets_output_dir}/{sampleset}/manifest"
+    txt=config["samplesets_output_dir"] + "/{sampleset}/manifest"
   params:
     req="h_vmem=4G",
   run:
@@ -122,7 +120,7 @@ rule dump_manifest:
 
 rule write_config:
   output:
-    cfg="{samplesets_output_dir}/{sampleset}/merge_genotypes_config.yml"
+    cfg=config["samplesets_output_dir"] + "/{sampleset}/merge_genotypes_config.yml"
   params:
     req="h_vmem=2G"
   run:
