@@ -1,0 +1,10 @@
+{
+	"phasing.Samples": ["AC0091-C"],
+	"phasing.og_vcf": "/kwiat/vector/ag1000g/release/phase1.preview/ag1000g.AC.phase1.AR1.PASS.vcf.gz",
+	"phasing.bam_dir": "/kwiat/vector/mirror/bam/bwa_gatk/",
+	"phasing.fasta_file": "/kwiat/vector/ag1000g/release/phase1.AR3/genome/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa",
+	"phasing.Chrs": ["X"],
+	"phasing.Name": "spike", 
+	"phasing.region_size": 5000000,
+	"phasing.overlap_size": 100000
+}
