@@ -1,7 +1,6 @@
 import "split_by_region.wdl" as SBR #workflow for the inside of the file splitting loop
 
-
-task get_recode_vcf {
+task get_recode_vcf { # Not usre it is needed
         String Ch
         String Ind
         File og_vcf
@@ -32,7 +31,7 @@ task apply_whatshap {
 	}
 }
 
-task tweek_sample {
+task tweek_sample { #Very unsatisfying!
         String Sample
 
         command {
@@ -80,7 +79,7 @@ workflow OcAsPhaser {
 
 
 	scatter (s in Samples) {
-		call get_recode_vcf {input: Ch=Ch, Ind=s, og_vcf=vcf, Name=Name, working_dir="~/phasing_tests/files"}
+#		call get_recode_vcf {input: Ch=Ch, Ind=s, og_vcf=vcf, Name=Name, working_dir="~/phasing_tests/files"}
 		call tweek_sample {input: Sample=s}
 #		call apply_whatshap {input: Name=Name, Ch=Ch, Sample=tweek_sample.return, bam_dir=bam_dir, recode_vcf=get_recode_vcf.recode_vcf} 
                 call get_chromosome_length {input: fasta_file=fasta_file, Ch=Ch}
