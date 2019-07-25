@@ -41,9 +41,9 @@ rule merge_zarr:
     zarr=directory(os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/{field}")),
     done=touch(os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/{field}.complete"))
   params:
-    samples=lambda y: os.path.join(config["samplesets_output_dir"], sampleset, "manifest"),
+    samples=os.path.join(config["samplesets_output_dir"], sampleset, "manifest"),
     input_pattern=lambda y: os.path.join(config["samplesets_output_dir"], config["data_dir"], "{sample}" + config["gt_suffix"]),
-    output=lambda y: os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr"),
+    output=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr"),
     seqid=lambda y: y.chrom,
     field=lambda y: y.field,
     cname="zstd",
@@ -65,8 +65,8 @@ rule compute_allele_freqs:
     zarr=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/GT"),
     sites=config["sites_path"]
   params:
-    outz=lambda y: os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr"),
-    inz=lambda y: os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr"),
+    outz=os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr"),
+    inz=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr"),
     req="h_vmem=10G",
     pe=""
   run:
