@@ -17,32 +17,33 @@ if "contigs" not in config:
 rule all_merge:
   input:
     expand(
-      os.path.join("{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
-      sampleset=[sampleset],
+      os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/{field}"),
       field=config["fields"],
-      chrom=config["contigs"]),
-    os.path.join(sampleset, "merge_genotypes_config.yml")
+      chrom=config["contigs"]
+    ),
+    os.path.join(config["samplesets_output_dir"], sampleset, "merge_genotypes_config.yml")
 
 
+# NH: This is an input to the contamination pipeline. We didn't use this for phase 3 because we had the phase 2 dataset available, which was curated
 rule all_freqs:
   input:
     expand(
-      os.path.join("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-      chrom=config["contigs"],
-      sampleset=[sampleset]),
+      os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF"),
+      chrom=config["contigs"]
+    ),
     os.path.join(sampleset, "merge_genotypes_config.yml")
 
 
 rule merge_zarr:
   input:
-    manifest="{sampleset}/manifest"
+    manifest=os.path.join(config["samplesets_output_dir"], sampleset, "manifest")
   output:
-    zarr=directory("{sampleset}/callset.zarr/{chrom}/calldata/{field}"),
-    done=touch("{sampleset}/callset.zarr/{chrom}/calldata/{field}.complete")
+    zarr=directory(os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/{field}")),
+    done=touch(os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/{field}.complete"))
   params:
-    samples=lambda y: os.path.join(y.sampleset, "manifest"),
-    input_pattern=lambda y: os.path.join(config["data_dir"], "{sample}" + config["gt_suffix"]),
-    output=lambda y: os.path.join(y.sampleset, "callset.zarr"),
+    samples=os.path.join(config["samplesets_output_dir"], sampleset, "manifest"),
+    input_pattern=lambda y: os.path.join(config["samplesets_output_dir"], config["data_dir"], "{sample}" + config["gt_suffix"]),
+    output=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr"),
     seqid=lambda y: y.chrom,
     field=lambda y: y.field,
     cname="zstd",
@@ -58,14 +59,14 @@ rule merge_zarr:
 
 rule compute_allele_freqs:
   output:
-    zarr=directory("{sampleset}/allele_frequencies.zarr/{chrom}/AF"),
-    done=touch("{sampleset}/allele_frequencies.zarr/{chrom}/AF.complete"),
+    zarr=directory(os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF")),
+    done=touch(os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr/{chrom}/AF.complete")),
   input:
-    zarr="{sampleset}/callset.zarr/{chrom}/calldata/GT",
+    zarr=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr/{chrom}/calldata/GT"),
     sites=config["sites_path"]
   params:
-    outz=lambda y: os.path.join(y.sampleset, "allele_frequencies.zarr"),
-    inz=lambda y: os.path.join(y.sampleset, "callset.zarr"),
+    outz=os.path.join(config["samplesets_output_dir"], sampleset, "allele_frequencies.zarr"),
+    inz=os.path.join(config["samplesets_output_dir"], sampleset, "callset.zarr"),
     req="h_vmem=10G",
     pe=""
   run:
@@ -107,7 +108,7 @@ rule compute_allele_freqs:
 
 rule dump_manifest:
   output:
-    txt="{sampleset}/manifest"
+    txt=os.path.join(config["samplesets_output_dir"], sampleset, "manifest")
   params:
     req="h_vmem=4G",
   run:
@@ -118,7 +119,7 @@ rule dump_manifest:
 
 rule write_config:
   output:
-    cfg="{sampleset}/merge_genotypes_config.yml"
+    cfg=os.path.join(config["samplesets_output_dir"], sampleset, "merge_genotypes_config.yml")
   params:
     req="h_vmem=2G"
   run:

@@ -16,29 +16,29 @@ path_df["path"] = [os.path.join(config["input_location"], x + config["gt_suffix"
 
 rule qc_report:
   input:
-    os.path.join(sampleset, "qc_summary.tsv")
+    os.path.join(config["samplesets_output_dir"], sampleset, "qc_summary.tsv")
 
 
 rule generate_report:
   input:
-    manifest="{sampleset}/manifest",
-    csv=expand("{{sampleset}}/{sample}.callstats.csv", sample=samples),
-    npy=expand("{{sampleset}}/{sample}.covhist.npz", sample=samples),
-    contam=expand("{{sampleset}}/{sample}.contamination.csv", sample=samples),
-    cfg="{sampleset}/qc_config.yml",
+    manifest=os.path.join(config["samplesets_output_dir"], sampleset, "manifest"),
+    csv=expand(os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.callstats.csv"), sample=samples),
+    npy=expand(os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.covhist.npz"), sample=samples),
+    contam=expand(os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.contamination.csv"), sample=samples),
+    cfg=os.path.join(config["samplesets_output_dir"], sampleset, "qc_config.yml"),
     fofn=fofn_path
   params:
-    path=lambda y: os.path.join(y.sampleset, "{sample}"),
+    path=lambda y: os.path.join(config["samplesets_output_dir"], sampleset, "{sample}"),
     req="h_vmem=6G"
   output:
-    csv="{sampleset}/qc_summary.tsv"
+    csv=os.path.join(config["samplesets_output_dir"], sampleset, "qc_summary.tsv")
   script:
     "../../scripts/combine_qc_cohort_stats.py"
 
 
 rule write_config:
   output:
-    cfg="{sampleset}/qc_config.yml"
+    cfg=os.path.join(config["samplesets_output_dir"], sampleset, "qc_config.yml")
   params:
     req="h_vmem=2G"
   run:
@@ -53,9 +53,9 @@ rule estimate_contamination:
     sites=config["genotyped_sites"],
     allele_frequencies=config["allele_frequencies"]
   output:
-    txt="{sampleset}/{sample}.contamination.csv"
+    txt=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.contamination.csv")
   params:
-    stem="{sampleset}/{sample}",
+    stem=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}"),
     seqid=config["seqid_contam"],
     downsample=config["downsample"],
     minimum_af=config["minimum_af"],
@@ -72,10 +72,10 @@ rule coverage_summary:
   input:
     input=lambda y: path_df.path.loc[y.sample],
   output:
-    csv="{sampleset}/{sample}.callstats.csv",
-    npy="{sampleset}/{sample}.covhist.npz"
+    csv=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.callstats.csv"),
+    npy=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}.covhist.npz")
   params:
-    stem="{sampleset}/{sample}",
+    stem=os.path.join(config["samplesets_output_dir"], sampleset, "{sample}"),
     seqid=config["seqid_stats"],
     req="h_vmem=12G"
   script: 
@@ -85,7 +85,7 @@ rule coverage_summary:
 # required for qc_report.
 rule make_manifest:
   output:
-    manifest="{sampleset}/manifest"
+    manifest=os.path.join(config["samplesets_output_dir"], sampleset, "manifest")
   params:
     req="h_vmem=2G"
   run:
