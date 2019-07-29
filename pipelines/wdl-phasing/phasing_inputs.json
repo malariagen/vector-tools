@@ -6,5 +6,6 @@
 	"phasing.Chrs": ["X"],
 	"phasing.Name": "spike", 
 	"phasing.region_size": 5000000,
-	"phasing.overlap_size": 100000
+	"phasing.overlap_size": 100000,
+	"phasing.File_dir": "/home/jon/phasing_tests/gen_files/"
 }

@@ -1,17 +1,18 @@
 import "split_by_region.wdl" as SBR #workflow for the inside of the file splitting loop
 
-task get_recode_vcf { # Not usre it is needed
+task get_recode_vcf { # Not sure it is needed
         String Ch
         String Ind
         File og_vcf
         String Name
-	String working_dir
+	String file_dir
 
         command {
-                vcftools --gzvcf ${og_vcf} --chr ${Ch} --indv ${Ind} --out ${Name}.${Ch}.${Ind} --recode
+                vcftools --gzvcf ${og_vcf} --chr ${Ch} --indv ${Ind} --out ${Name}.${Ch}.${Ind} --recode 
+		mv ${Name}.${Ch}.${Ind}.recode.vcf ${file_dir}${Name}.${Ch}.${Ind}.recode.vcf
         }
         output {   
-                File recode_vcf = "${Name}.${Ch}.${Ind}.recode.vcf"
+                File recode_vcf = "${file_dir}${Name}.${Ch}.${Ind}.recode.vcf"
         }
 }
 
@@ -21,13 +22,15 @@ task apply_whatshap {
 	String Sample
 	String bam_dir
 	File recode_vcf
+	String file_dir
 
 	command {
 		whatshap phase -o ${Name}.${Ch}.${Sample}.phased.vcf ${recode_vcf} ${bam_dir}${Sample}.bam
+		mv ${Name}.${Ch}.${Sample}.phased.vcf ${file_dir}${Name}.${Ch}.${Sample}.phased.vcf
 	}
 	
 	output {
-		File phased_vcf = "${Name}.${Ch}.${Sample}.phased.vcf"
+		File phased_vcf = "${file_dir}${Name}.${Ch}.${Sample}.phased.vcf"
 	}
 }
 
@@ -67,6 +70,23 @@ task get_regions {
         }
 }
 
+task get_index {
+	File vcf
+	String ch
+	String Name
+	String Sample
+	String file_dir
+
+	command {
+		bgzip -c ${vcf} > ${file_dir}${Name}.${ch}.${Sample}.gz
+                tabix -fp vcf ${file_dir}${Name}.${ch}.${Sample}.gz
+	}
+	output {
+		File vcf_gz = "${file_dir}${Name}.${ch}.${Sample}.gz"
+	}
+	 
+}
+
 workflow OcAsPhaser {
 	Array[String] Samples
 	String Ch
@@ -76,16 +96,19 @@ workflow OcAsPhaser {
         String fasta_file
         Int region_size
         Int overlap_size
+	String File_dir
 
 
 	scatter (s in Samples) {
-#		call get_recode_vcf {input: Ch=Ch, Ind=s, og_vcf=vcf, Name=Name, working_dir="~/phasing_tests/files"}
+		call get_recode_vcf {input: Ch=Ch, Ind=s, og_vcf=vcf, Name=Name, file_dir=File_dir}
 		call tweek_sample {input: Sample=s}
-#		call apply_whatshap {input: Name=Name, Ch=Ch, Sample=tweek_sample.return, bam_dir=bam_dir, recode_vcf=get_recode_vcf.recode_vcf} 
+#		call apply_whatshap {input: Name=Name, Ch=Ch, Sample=tweek_sample.return, bam_dir=bam_dir, recode_vcf=get_recode_vcf.recode_vcf, file_dir=File_dir} 
                 call get_chromosome_length {input: fasta_file=fasta_file, Ch=Ch}
                 call get_regions {input: max=get_chromosome_length.ch_len, overlap=overlap_size, region=region_size}		
-#		call SBR.split_by_region {input: regions=get_regions.regions, vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s}
-		call SBR.split_by_region {input: regions=get_regions.regions, vcf=get_recode_vcf.recode_vcf, ch=Ch, Name=Name, Sample=s}
+#		call get_index {input: vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}
+		call get_index {input: vcf=get_recode_vcf.recode_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}
+#		call SBR.split_by_region {input: regions=get_regions.regions, vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}
+		call SBR.split_by_region {input: regions=get_regions.regions, vcf=get_recode_vcf.recode_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}
 	}
 	
 #	output {
