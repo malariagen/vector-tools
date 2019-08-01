@@ -7,6 +7,7 @@ task get_region {
 	String Sample
 	String file_dir
 
+
 	command {
 		tabix -h ${file_dir}${Name}.${ch}.${Sample}.gz ${ch}:${init}-${stop} > ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf
 		bgzip -c ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf > ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz
