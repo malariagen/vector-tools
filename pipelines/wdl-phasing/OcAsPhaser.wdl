@@ -48,9 +48,10 @@ task tweek_sample { #Very unsatisfying!
 task get_chromosome_length { #from the fasta file, extract the length of each chromosome
         String Ch
         String fasta_file
+	String py_dir
 
         command {
-                python ~/phasing_tests/get_ch_len.py ${fasta_file} ${Ch}
+                python ${py_dir}get_ch_len.py ${fasta_file} ${Ch}
         }
         output {
                 String ch_len = read_string(stdout())
@@ -61,9 +62,10 @@ task get_regions {
         Int max
         Int overlap
         Int region
+	String py_dir
 
         command {
-                python ~/phasing_tests/get_regions.py ${max} ${overlap} ${region}
+                python ${py_dir}get_regions.py ${max} ${overlap} ${region}
         }
         output {
                 Array[Array[String]] regions = read_tsv(stdout())
@@ -97,14 +99,14 @@ workflow OcAsPhaser {
         Int region_size
         Int overlap_size
 	String File_dir
-
+	String py_dir	
 
 	scatter (s in Samples) {
 		call get_recode_vcf {input: Ch=Ch, Ind=s, og_vcf=vcf, Name=Name, file_dir=File_dir}
 		call tweek_sample {input: Sample=s}
 #		call apply_whatshap {input: Name=Name, Ch=Ch, Sample=tweek_sample.return, bam_dir=bam_dir, recode_vcf=get_recode_vcf.recode_vcf, file_dir=File_dir} 
-                call get_chromosome_length {input: fasta_file=fasta_file, Ch=Ch}
-                call get_regions {input: max=get_chromosome_length.ch_len, overlap=overlap_size, region=region_size}		
+                call get_chromosome_length {input: fasta_file=fasta_file, Ch=Ch, py_dir=py_dir}
+                call get_regions {input: max=get_chromosome_length.ch_len, overlap=overlap_size, region=region_size, py_dir=py_dir}		
 #		call get_index {input: vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}
 		call get_index {input: vcf=get_recode_vcf.recode_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}
 #		call SBR.split_by_region {input: regions=get_regions.regions, vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s, file_dir=File_dir}

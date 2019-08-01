@@ -10,10 +10,11 @@ workflow phasing {
 	Int region_size
 	Int overlap_size
 	String File_dir
+	String py_dir
 
 	# pre-phase all the files through whatshap
 	scatter (ch in Chrs){
-		call OAP.OcAsPhaser {input: Ch=ch, Samples=Samples, vcf=og_vcf, Name=Name, bam_dir=bam_dir, fasta_file=fasta_file, region_size=region_size, overlap_size=overlap_size, File_dir=File_dir}		
+		call OAP.OcAsPhaser {input: Ch=ch, Samples=Samples, vcf=og_vcf, Name=Name, bam_dir=bam_dir, fasta_file=fasta_file, region_size=region_size, overlap_size=overlap_size, File_dir=File_dir, py_dir=py_dir}		
 	}
 
 	# obtain each chromosome max_site from fasta file
