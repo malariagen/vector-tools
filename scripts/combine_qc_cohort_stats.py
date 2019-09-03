@@ -97,7 +97,7 @@ def main():
 
     allele_calls_summed = df.groupby(level=0).agg(sum)
 
-    qc_frame['divergence'] = (allele_calls_summed["nNonRefAlleles"] / (2 * allele_calls_summed["nSitesCalled"])).round(3)
+    qc_frame['divergence'] = (allele_calls_summed["nNonRefAlleles"] / (2 * allele_calls_summed["nSitesCalled"])).round(5)
 
     contam_df = pd.concat(
         [pd.read_csv(args["input_path"].format(sample=sid) + contam_suffix, index_col=0) for sid in sids])
