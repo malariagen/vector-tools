@@ -5,16 +5,25 @@ task get_region {
 	Int stop
 	String Name
 	String Sample
-	String file_dir
-
 
 	command {
-		tabix -h ${file_dir}${Name}.${ch}.${Sample}.gz ${ch}:${init}-${stop} > ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf
-		bgzip -c ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf > ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz
-		rm ${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf
+		bgzip -c ${vcf} > ${Name}.${ch}.${Sample}.gz
+		tabix -fp vcf ${Name}.${ch}.${Sample}.gz
+		tabix -h ${Name}.${ch}.${Sample}.gz ${ch}:${init}-${stop} > ${Name}.${ch}.${Sample}.${init}-${stop}.vcf 
+		bgzip -c ${Name}.${ch}.${Sample}.${init}-${stop}.vcf > ${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz
 	}
 	output {
-		File vcf_r = "${file_dir}${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz"
+		File vcf_r = "${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz"
+	}
+}
+
+task return1 {
+	command {
+		ls
+	}
+
+	output {
+		String one = "one"
 	}
 }
 
@@ -24,9 +33,15 @@ workflow split_by_region {
 	String ch
         String Name
         String Sample
-	String file_dir
+
+
 
 	scatter (r in regions) {
-		call get_region {input: vcf=vcf, ch=ch, init=r[0], stop=r[1], Name=Name, Sample=Sample, file_dir=file_dir}
+		call get_region {input: vcf=vcf, ch=ch, init=r[0], stop=r[1], Name=Name, Sample=Sample}
 	}
+	call return1
+
+#	output {
+#		return1.one
+#	}
 }

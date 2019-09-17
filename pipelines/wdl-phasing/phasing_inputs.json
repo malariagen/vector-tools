@@ -1,12 +1,11 @@
 {
-	"phasing.Samples": ["AC0091-C"],
-	"phasing.og_vcf": "/users/kwiat/nxa223/Ag1000G-v1/ag1000g.AC.phase1.AR1.PASS.vcf.gz",
-	"phasing.bam_dir": "/users/kwiat/nxa223/Ag1000G-v1/",
-	"phasing.fasta_file": "/users/kwiat/nxa223/Ag1000G-v1/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa",
-	"phasing.py_dir": "/users/kwiat/nxa223/Repositories/vector-ops/vector-tools/pipelines/wdl-phasing/",
-	"phasing.Chrs": ["X"],
-	"phasing.Name": "spike", 
-	"phasing.region_size": 5000000,
-	"phasing.overlap_size": 100000,
-	"phasing.File_dir": "/users/kwiat/nxa223/Ag1000G-v1/gen_files/"
+"phasing.Samples": ["AC0091-C", "AC0092-C"],
+"phasing.og_vcf": "/users/kwiat/nxa223/phasing_files/ag1000g.AC.phase1.AR1.PASS.vcf.gz",
+"phasing.bam_dir": "/users/kwiat/nxa223/phasing_files/",
+"phasing.fasta_file": "/users/kwiat/nxa223/phasing_files/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP3.fa",
+"phasing.python_dir": "/users/kwiat/nxa223/Repositories/vector-ops/vector-tools/pipelines/wdl-phasing/",
+"phasing.Chrs": ["X"],
+"phasing.Name": "spike", 
+"phasing.region_size": 5000000,
+"phasing.overlap_size": 100000
 }
