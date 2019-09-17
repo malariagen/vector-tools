@@ -10,9 +10,20 @@ task get_region {
 		bgzip -c ${vcf} > ${Name}.${ch}.${Sample}.gz
 		tabix -fp vcf ${Name}.${ch}.${Sample}.gz
 		tabix -h ${Name}.${ch}.${Sample}.gz ${ch}:${init}-${stop} > ${Name}.${ch}.${Sample}.${init}-${stop}.vcf 
+		bgzip -c ${Name}.${ch}.${Sample}.${init}-${stop}.vcf > ${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz
 	}
 	output {
-		File vcf_r = "${Name}.${ch}.${Sample}.${init}-${stop}.vcf"
+		File vcf_r = "${Name}.${ch}.${Sample}.${init}-${stop}.vcf.gz"
+	}
+}
+
+task return1 {
+	command {
+		ls
+	}
+
+	output {
+		String one = "one"
 	}
 }
 
@@ -23,7 +34,14 @@ workflow split_by_region {
         String Name
         String Sample
 
+
+
 	scatter (r in regions) {
 		call get_region {input: vcf=vcf, ch=ch, init=r[0], stop=r[1], Name=Name, Sample=Sample}
+	}
+	call return1
+
+	output {
+		return1.one
 	}
 }

@@ -45,9 +45,10 @@ task tweek_sample {
 task get_chromosome_length { #from the fasta file, extract the length of each chromosome
         String Ch
         String fasta_file
+	String python_dir
 
         command {
-                python ~/phasing_tests/get_ch_len.py ${fasta_file} ${Ch}
+                python ${python_dir}get_ch_len.py ${fasta_file} ${Ch}
         }
         output {
                 String ch_len = read_string(stdout())
@@ -58,13 +59,22 @@ task get_regions {
         Int max
         Int overlap
         Int region
+	String python_dir
 
         command {
-                python ~/phasing_tests/get_regions.py ${max} ${overlap} ${region}
+                python ${python_dir}get_regions.py ${max} ${overlap} ${region}
         }
         output {
                 Array[Array[String]] regions = read_tsv(stdout())
         }
+}
+
+task test_return {
+#	Array[File] return
+
+	command {
+		echo "Done"
+	}
 }
 
 workflow OcAsPhaser {
@@ -74,6 +84,7 @@ workflow OcAsPhaser {
 	String Name
 	String bam_dir
         String fasta_file
+	String python_dir
         Int region_size
         Int overlap_size
 
@@ -81,14 +92,15 @@ workflow OcAsPhaser {
 	scatter (s in Samples) {
 		call get_recode_vcf {input: Ch=Ch, Ind=s, og_vcf=vcf, Name=Name, working_dir="~/phasing_tests/files"}
 		call tweek_sample {input: Sample=s}
-#		call apply_whatshap {input: Name=Name, Ch=Ch, Sample=tweek_sample.return, bam_dir=bam_dir, recode_vcf=get_recode_vcf.recode_vcf} 
-                call get_chromosome_length {input: fasta_file=fasta_file, Ch=Ch}
-                call get_regions {input: max=get_chromosome_length.ch_len, overlap=overlap_size, region=region_size}		
-#		call SBR.split_by_region {input: regions=get_regions.regions, vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s}
-		call SBR.split_by_region {input: regions=get_regions.regions, vcf=get_recode_vcf.recode_vcf, ch=Ch, Name=Name, Sample=s}
+		call apply_whatshap {input: Name=Name, Ch=Ch, Sample=tweek_sample.return, bam_dir=bam_dir, recode_vcf=get_recode_vcf.recode_vcf} 
+                call get_chromosome_length {input: fasta_file=fasta_file, Ch=Ch, python_dir=python_dir}
+                call get_regions {input: max=get_chromosome_length.ch_len, overlap=overlap_size, region=region_size, python_dir=python_dir}		
+		call SBR.split_by_region {input: regions=get_regions.regions, vcf=apply_whatshap.phased_vcf, ch=Ch, Name=Name, Sample=s}
+		call test_return #{input: return=SBR.split_by_region.regions}
 	}
 	
+	
 #	output {
-#		Array[File] recode_vcfs = apply_whatshap.phased_vcf
+#		Array[Array[File]] by_sample_by_region = SBR.split_by_region.by_region
 #	}	
 }
