@@ -17,16 +17,6 @@ task get_region {
 	}
 }
 
-task return1 {
-	command {
-		ls
-	}
-
-	output {
-		String one = "one"
-	}
-}
-
 workflow split_by_region {
 	Array[Array[String]] regions
 	File vcf
@@ -39,9 +29,8 @@ workflow split_by_region {
 	scatter (r in regions) {
 		call get_region {input: vcf=vcf, ch=ch, init=r[0], stop=r[1], Name=Name, Sample=Sample}
 	}
-	call return1
 
 	output {
-		return1.one
+		Array[File] regs = get_region.vcf_r
 	}
 }

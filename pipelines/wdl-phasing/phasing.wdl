@@ -138,7 +138,7 @@ workflow phasing {
 	String python_dir
 
 	#get original vcf
-	#call get_og_vcf {input: og_vcf=og_vcf}
+	#call tweek_sample {input: Sample="AC0091-C"}
 
 	#get the fasta file
 	#call get_fasta_file {input: fasta_file=fasta_file} 
