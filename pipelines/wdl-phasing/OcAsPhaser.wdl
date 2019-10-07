@@ -126,7 +126,7 @@ workflow OcAsPhaser {
 		call select_files_by_region {input: region=r, files=flatten(split_by_region.regs), python_dir=python_dir}
 		call CI.create_indexes {input: vcfs=select_files_by_region.files_by_region[0]}
 		call generate_region_file {input: reg=r, files=select_files_by_region.files_by_region[0], indexes = create_indexes.indexes, bnames=create_indexes.bnames}
-	}
+	
 	
 #	output {
 #		Array[Array[File]] by_sample_by_region = SBR.split_by_region.by_region
