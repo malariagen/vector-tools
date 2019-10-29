@@ -181,8 +181,7 @@ def setup_input(samples, input_pattern, seqid, field, fill_na=None):
     input_arrays = [da.from_array(a, chunks=a.chunks) for a in input_arrays]
 
     if fill_na is not None:
-        for a in input_arrays:
-            a[np.isnan(a)] = fill_na
+        input_arrays = [da.where(da.isnan(a), fill_na, a) for a in input_arrays]
 
     # here we add a dim to allow the hstack to work. must share the shape (X, 1, )
     input_arrays = [a[:, None] if a.ndim == 1 else a for a in input_arrays]
