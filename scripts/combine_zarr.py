@@ -31,15 +31,23 @@ def main():
                         help='name of chromosome or contig to process')
     parser.add_argument('--field', required=True,
                         help='name of field to extract, e.g., "calldata/GT". If the root not given e.g. "GT" defaults to "calldata/GT".')
-    parser.add_argument('--chunk-width', required=False, default=50,
+    parser.add_argument('--dtype', required=False, default=None,
+                        help='If specified, dtype of resulting output data store. Otherwise will be inferred from data')
+    parser.add_argument('--chunk-width', required=False, default=50, type=int,
                         help='chunk width, defaults to 50')
+    parser.add_argument('--chunk-size', required=False, default=27, type=int,
+                        help='desired chunk size in bytes, expressed as powers of 2 to be raised. eg 2**27 = 128Mb')
+    parser.add_argument('--fill-na', required=False, default=None, type=int,
+                        help='when casting from float to int how to handle NaN values')
     parser.add_argument('--cname', required=False, default='zstd',
                         help='name of compressor library, defaults to zstd')
-    parser.add_argument('--clevel', required=False, default=1,
+    parser.add_argument('--clevel', required=False, default=1, type=int,
                         help='compression level, defaults to 1')
-    parser.add_argument('--shuffle', required=False, default=0,
+    parser.add_argument('--shuffle', required=False, default=0, type=int,
                         help='shuffle filter; 0 = no shuffle (default), 1 = byte shuffle, '
                              '2 = bit shuffle')
+    parser.add_argument('--order', required=False, default='C', type=str,
+                        help='Whether the order of the array should be C or F, important for compression')
     parser.add_argument('--num-workers', required=False, default=None, type=int,
                         help='number of parallel workers to use, defaults to number of cores')
 
@@ -50,10 +58,14 @@ def main():
           "output": snakemake.params.output,
           "seqid": snakemake.params.seqid,
           "field": snakemake.params.field,
+          "dtype": snakemake.params.dtype,
+          "fill_na": snakemake.params.fill_na,
           "num_workers": snakemake.params.num_workers,
           "cname": snakemake.params.cname,
           "clevel": snakemake.params.clevel,
           "chunk_width": snakemake.params.chunk_width,
+          "chunk_size": snakemake.params.chunk_size,
+          "order": snakemake.params.order,
           "shuffle": snakemake.params.shuffle
         }
         log("Args read via snakemake")
@@ -79,14 +91,20 @@ def main():
         samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
         field=args["field"])
 
+    if not np.issubdtype(arr.dtype, np.floating):
+        if args["fill_na"] is not None:
+            log("WARNING: Fill_na should only be specified when dtype of input array is a float. This will be ignored.")
+            args["fill_na"] = None
+
     output_arr = setup_output(
         output_path=args["output"], seqid=args["seqid"], field=args["field"],
         example_arr=arr, samples=samples, cname=args["cname"],
-        clevel=args["clevel"], shuffle=args["shuffle"], chunk_width=args["chunk_width"])
+        clevel=args["clevel"], shuffle=args["shuffle"], order=args["order"], chunk_width=args["chunk_width"],
+        chunk_size=args["chunk_size"], dtype=args["dtype"])
 
     input_arr = setup_input(
         samples=samples, input_pattern=args["input_pattern"], seqid=args["seqid"],
-        field=field_path)
+        field=field_path, fill_na=args["fill_na"])
 
     copy_data(input_arr=input_arr, output_arr=output_arr, num_workers=args["num_workers"])
     log('All done.')
@@ -128,8 +146,13 @@ def check_array_setup(samples, input_pattern, seqid, field):
     return array, field
 
 
-def setup_output(output_path, seqid, field, example_arr, samples, cname, clevel, shuffle,
-                 chunk_width):
+def setup_output(output_path, seqid, field, example_arr, samples, cname, clevel, shuffle, order,
+                 chunk_width, chunk_size, dtype=None):
+    if dtype is None:
+        dtype = example_arr.dtype
+    else:
+        dtype = getattr(np, dtype)
+
     log('Setting up output at {!r} ...'.format(output_path))
     callset = zarr.open_group(output_path, mode='a')
     seq_group = callset.require_group(seqid)
@@ -137,24 +160,29 @@ def setup_output(output_path, seqid, field, example_arr, samples, cname, clevel,
     root_group = seq_group.require_group(field_root)
     output_shape = (example_arr.shape[0], len(samples)) + example_arr.shape[2:]
 
-    c1 = 2 **26 // np.prod((chunk_width,) + example_arr.shape[2:])
+    c1 = (2 ** (chunk_size - example_arr.itemsize)) // np.prod((chunk_width,) + example_arr.shape[2:])
     output_chunks = (c1, chunk_width) + example_arr.chunks[2:]
 
     compressor = numcodecs.Blosc(cname=cname, clevel=clevel, shuffle=shuffle)
     output_arr = root_group.empty_like(
-      field_id, example_arr, shape=output_shape, 
-      chunks=output_chunks, overwrite=True, compressor=compressor)
+      field_id, example_arr, shape=output_shape, dtype=dtype,
+      chunks=output_chunks, overwrite=True, compressor=compressor, order=order)
     log('Created output array: ' + repr(output_arr))
     return output_arr
 
 
-def setup_input(samples, input_pattern, seqid, field):
+def setup_input(samples, input_pattern, seqid, field, fill_na=None):
     log('Setting up input array ...')
     input_paths = [input_pattern.format(sample=s) for s in samples]
     input_stores = [zarr.ZipStore(ip, mode='r') for ip in input_paths]
     input_roots = [zarr.group(store) for store in input_stores]
     input_arrays = [root[s][seqid][field] for root, s in zip(input_roots, samples)]
+
     input_arrays = [da.from_array(a, chunks=a.chunks) for a in input_arrays]
+
+    if fill_na is not None:
+        for a in input_arrays:
+            a[np.isnan(a)] = fill_na
 
     # here we add a dim to allow the hstack to work. must share the shape (X, 1, )
     input_arrays = [a[:, None] if a.ndim == 1 else a for a in input_arrays]
