@@ -53,6 +53,7 @@ rule merge_zarr:
     fill_na=lambda y: config["fill_na"].get(y.field, None),
     shuffle=lambda y: config["shuffle"].get(y.field, 0),
     chunk_width=config["chunk_width"],
+    chunk_size=config["chunk_size"],
     num_workers=4,
     req="h_vmem=12G",
     pe="-pe simple_pe 4"
