@@ -6,3 +6,9 @@ gt_suffix: '.genotypes.zarr.zip'
 chunk_width: 1
 contigs: ["2R", "2L", "3R", "3L", "X"]
 fields: ["GT", "GQ", "AD"]
+shuffle: {"AD": 1}
+order: {"AD": "F"}
+cname: {}
+clevel: {}
+fill_na: {"MQ": -1}
+dtype: {"GQ": "int16", "MQ": "int16"}
